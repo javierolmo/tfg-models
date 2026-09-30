@@ -7,21 +7,21 @@ PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 
 from modelhandler import AzureModelHandler, LocalModelHandler, ModelHandler
 
 MODEL_HANDLER_TYPE = os.environ.get("MODEL_HANDLER", "azure").lower()
 if MODEL_HANDLER_TYPE == "azure":
-    model_handler: ModelHandler = AzureModelHandler("linear_regression")
+    model_handler: ModelHandler = AzureModelHandler("lightgbm")
 else:
-    model_handler: ModelHandler = LocalModelHandler("linear_regression")
+    model_handler: ModelHandler = LocalModelHandler("lightgbm")
 
 
 def predict(
-    model: LinearRegression,
+    model: lgb.LGBMRegressor,
     features: list,
     surface: int,
     rooms: int,
@@ -31,6 +31,7 @@ def predict(
     garage: bool,
     postal_code: int,
 ) -> np.ndarray:
+    """Runs valuation inference using the trained LightGBM model."""
     new_data = {
         "surface": [surface],
         "rooms": [rooms],
@@ -38,19 +39,17 @@ def predict(
         "elevator": [int(elevator)],
         "terrace": [int(terrace)],
         "garage": [int(garage)],
-        f"postal_code_{postal_code}": [1],
+        "postal_code": [postal_code],
     }
 
-    # Convert to pandas DataFrame
     new_df = pd.DataFrame(new_data)
 
-    # Ensure all trained features are present, filling missing with 0
-    new_df = new_df.reindex(columns=features, fill_value=0)
+    # Cast postal_code to category matching the training preprocessing
+    new_df["postal_code"] = new_df["postal_code"].astype("category")
 
-    # Align column ordering
+    # Align columns to match training features exactly
     new_df = new_df[features]
 
-    # Predict with loaded model
     predictions = model.predict(new_df)
     print("Predictions:", predictions)
     return predictions

@@ -9,11 +9,11 @@ PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from pyspark.sql import DataFrame
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 from dataproviders import AzureDataProvider, DataProvider, LocalDataProvider
@@ -33,13 +33,13 @@ else:
     data_provider: DataProvider = LocalDataProvider()
 
 if MODEL_HANDLER_TYPE == "azure":
-    model_handler: ModelHandler = AzureModelHandler("linear_regression")
+    model_handler: ModelHandler = AzureModelHandler("lightgbm")
 else:
-    model_handler: ModelHandler = LocalModelHandler("linear_regression")
+    model_handler: ModelHandler = LocalModelHandler("lightgbm")
 
 
 def clean_data(properties_df: DataFrame) -> pd.DataFrame:
-    """Cleans the input Spark DataFrame and returns a pandas DataFrame."""
+    """Cleans the input Spark DataFrame and returns a pandas DataFrame prepared for LightGBM."""
     logger.info("Cleaning data...")
     clean_df = (
         properties_df
@@ -51,23 +51,48 @@ def clean_data(properties_df: DataFrame) -> pd.DataFrame:
         .filter("surface > 0 AND rooms > 0 AND bathrooms > 0 AND price > 0")
     )
     logger.info(f"Cleaned dataset size: {clean_df.count()} rows")
-    return clean_df.toPandas()
+    pdf = clean_df.toPandas()
+
+    # Convert boolean columns to integer
+    for col in ["elevator", "terrace", "garage"]:
+        pdf[col] = pdf[col].astype(int)
+
+    # Use category dtype for native high-cardinality categorical handling in LightGBM
+    pdf["postal_code"] = pdf["postal_code"].astype("category")
+
+    return pdf
 
 
-def generate_report(target_test: pd.Series, y_pred: np.ndarray, model: LinearRegression, features: pd.DataFrame) -> dict:
-    """Generates a performance report for the model."""
+def generate_report(
+    target_test: pd.Series,
+    y_pred: np.ndarray,
+    model: lgb.LGBMRegressor,
+    feature_names: list,
+) -> dict:
+    """Generates a performance report for the LightGBM model."""
     logger.info("Generating report...")
     mae = mean_absolute_error(target_test, y_pred)
     mse = mean_squared_error(target_test, y_pred)
     rmse = np.sqrt(mse)
+    r2 = r2_score(target_test, y_pred)
+
+    importances = model.feature_importances_
+    feature_importance_dict = {
+        name: int(imp) for name, imp in zip(feature_names, importances)
+    }
+    # Sort feature importances descending
+    sorted_importances = dict(sorted(feature_importance_dict.items(), key=lambda item: item[1], reverse=True))
 
     report = {
         "mae": float(mae),
         "rmse": float(rmse),
-        "intercept": float(model.intercept_),
-        "features": {str(feature): float(coef) for feature, coef in zip(features.columns, model.coef_)},
+        "r2_score": float(r2),
+        "feature_importances": sorted_importances,
+        "n_estimators": int(model.n_estimators),
+        "learning_rate": float(model.learning_rate),
+        "num_leaves": int(model.num_leaves),
     }
-    logger.info(f"Report generated: MAE={mae:.2f}, RMSE={rmse:.2f}")
+    logger.info(f"Report generated: MAE={mae:.2f}, RMSE={rmse:.2f}, R2={r2:.4f}")
     return report
 
 
@@ -76,10 +101,7 @@ if __name__ == '__main__':
     properties_df = data_provider.read_properties_full()
 
     # Clean and preprocess data
-    clean_df = clean_data(properties_df)
-
-    logger.info("Converting postal codes to dummy variables...")
-    properties = pd.get_dummies(clean_df, columns=["postal_code"], drop_first=True)
+    properties = clean_data(properties_df)
 
     # Separate features and target
     features = properties.drop(columns=["price"])
@@ -90,22 +112,30 @@ if __name__ == '__main__':
         features, target, test_size=0.2, random_state=42
     )
 
-    logger.info("Training Linear Regression model...")
-    model = LinearRegression()
+    logger.info("Training LightGBM Regressor model...")
+    model = lgb.LGBMRegressor(
+        n_estimators=300,
+        learning_rate=0.05,
+        num_leaves=31,
+        random_state=42,
+        objective="regression",
+        verbosity=-1,
+    )
     model.fit(features_train, target_train)
 
     logger.info("Making predictions...")
     y_pred = model.predict(features_test)
 
-    # Generate and print report
-    report = generate_report(target_test, y_pred, model, features_train)
+    # Generate and log report
+    report = generate_report(target_test, y_pred, model, list(features_train.columns))
     logger.info("Model performance summary:")
-    logger.info("MAE: %.2f | RMSE: %.2f | Intercept: %.2f", report["mae"], report["rmse"], report["intercept"])
+    logger.info("MAE: %.2f | RMSE: %.2f | R2: %.4f", report["mae"], report["rmse"], report["r2_score"])
+    logger.info("Feature importances:\n%s", json.dumps(report["feature_importances"], indent=2))
 
     logger.info("Saving model and metadata...")
     model_handler.save_model(
         model,
-        features_train.columns,
+        list(features_train.columns),
         report=report,
     )
-    logger.info("Model and metadata saved successfully.")
+    logger.info("LightGBM model and metadata saved successfully.")
