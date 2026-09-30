@@ -3,7 +3,7 @@
 Machine Learning pipelines for real estate appraisal and valuation based on Azure Data Lake Storage Gen2 (`gold.properties_full`).
 
 ## Version
-**0.0.1** (See [CHANGELOG.md](file:///Users/javierolmo/IdeaProjects/tfg-models/CHANGELOG.md) for release history)
+**0.0.2** (See [CHANGELOG.md](file:///Users/javierolmo/IdeaProjects/tfg-models/CHANGELOG.md) for release history)
 
 ## Project Structure
 
@@ -15,7 +15,7 @@ tfg-models/
 │   ├── ci.yml                  # Pull request test validation & coverage
 │   └── cd.yml                  # Auto-tagging & Docker Hub publishing on push to main
 ├── CHANGELOG.md                # Release history and semantic version tracking
-├── pyproject.toml              # Project specification, version (0.0.1), dependencies, console scripts
+├── pyproject.toml              # Project specification, version (0.0.2), dependencies, console scripts
 ├── Dockerfile                  # Lightweight containerized ML environment (Python 3.12, PyArrow, LightGBM)
 ├── docker-compose.yml          # Container orchestration (train, compare, predict)
 ├── src/
