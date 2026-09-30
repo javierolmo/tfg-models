@@ -6,7 +6,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional
 
-from pyspark.sql import DataFrame, SparkSession
+import pandas as pd
+import pyarrow.dataset as ds
+from pyarrow.fs import AzureFileSystem
 
 from tfg_models.config import settings
 
@@ -16,15 +18,12 @@ logger = logging.getLogger(__name__)
 class DataProvider(ABC):
     """Abstract base class for property data providers."""
 
-    def __init__(self, spark_session: Optional[SparkSession] = None):
-        self.spark = spark_session
-
     @abstractmethod
-    def read_properties_full(self) -> DataFrame:
+    def read_properties_full(self) -> pd.DataFrame:
         """Reads the full consolidated properties dataset (properties_full)."""
         pass
 
-    def read_properties_snapshot(self, date: Optional[datetime] = None) -> DataFrame:
+    def read_properties_snapshot(self, date: Optional[datetime] = None) -> pd.DataFrame:
         """
         Reads property data. If date is provided and load_date is available,
         filters by date. Otherwise returns the full dataset.
@@ -34,7 +33,7 @@ class DataProvider(ABC):
         if date and "load_date" in df.columns:
             date_str = date.strftime("%Y-%m-%d")
             logger.info("Filtering properties_full by load_date = '%s'", date_str)
-            return df.filter(f"load_date = '{date_str}'")
+            return df[df["load_date"] == date_str]
         return df
 
 
@@ -47,50 +46,52 @@ class AzureDataProvider(DataProvider):
         container: Optional[str] = None,
         table_path: Optional[str] = None,
         account_key: Optional[str] = None,
-        spark_session: Optional[SparkSession] = None,
+        filesystem: Optional[AzureFileSystem] = None,
     ):
         self.storage_account = storage_account or settings.azure_storage_account
         self.container = container or settings.azure_container
         self.table_path = table_path or settings.properties_table_path
         self.account_key = account_key or settings.azure_storage_account_key
 
-        if not spark_session:
-            builder = SparkSession.builder.appName("tfg-models")
-            builder = builder.config("spark.jars.packages", settings.spark_jars_packages)
-            if self.account_key:
-                builder = builder.config(
-                    f"spark.hadoop.fs.azure.account.auth.type.{self.storage_account}.dfs.core.windows.net",
-                    "SharedKey",
-                ).config(
-                    f"spark.hadoop.fs.azure.account.key.{self.storage_account}.dfs.core.windows.net",
-                    self.account_key,
-                )
-            spark_session = builder.getOrCreate()
+        # If account_key is missing but connection string is provided, attempt extraction
+        if not self.account_key and settings.azure_storage_connection_string:
+            parts = dict(
+                item.split("=", 1)
+                for item in settings.azure_storage_connection_string.split(";")
+                if "=" in item
+            )
+            self.account_key = parts.get("AccountKey")
+            if not self.storage_account:
+                self.storage_account = parts.get("AccountName")
+
+        if filesystem:
+            self.fs = filesystem
+        elif self.account_key:
+            self.fs = AzureFileSystem(
+                account_name=self.storage_account,
+                account_key=self.account_key,
+            )
         else:
-            if self.account_key:
-                hadoop_conf = spark_session.sparkContext._jsc.hadoopConfiguration()
-                hadoop_conf.set(
-                    f"fs.azure.account.auth.type.{self.storage_account}.dfs.core.windows.net",
-                    "SharedKey",
-                )
-                hadoop_conf.set(
-                    f"fs.azure.account.key.{self.storage_account}.dfs.core.windows.net",
-                    self.account_key,
-                )
+            self.fs = AzureFileSystem(account_name=self.storage_account)
 
-        super().__init__(spark_session=spark_session)
-        self.base_url = f"abfss://{self.container}@{self.storage_account}.dfs.core.windows.net/{self.table_path}"
-        logger.info("Initializing AzureDataProvider with Data Lake at: %s", self.base_url)
+        self.full_path = f"{self.container}/{self.table_path}".strip("/")
+        logger.info(
+            "Initializing AzureDataProvider for Data Lake path: %s (account: %s)",
+            self.full_path,
+            self.storage_account,
+        )
 
-    def read_properties_full(self) -> DataFrame:
-        """Reads properties_full directly from Azure Data Lake Storage Gen2."""
-        logger.info("Reading properties_full from Azure Data Lake: %s", self.base_url)
+    def read_properties_full(self) -> pd.DataFrame:
+        """Reads properties_full directly from Azure Data Lake Storage Gen2 using native PyArrow."""
+        logger.info("Reading properties_full from Azure Data Lake: %s", self.full_path)
         try:
-            df = self.spark.read.format("parquet").load(self.base_url)
-            logger.info("Properties successfully loaded from Azure Data Lake.")
+            dataset = ds.dataset(self.full_path, filesystem=self.fs, format="parquet")
+            table = dataset.to_table()
+            df = table.to_pandas()
+            logger.info("Properties successfully loaded from Azure Data Lake (%d rows).", len(df))
             return df
         except Exception as e:
-            logger.error("Failed to read properties_full from Azure Data Lake (%s): %s", self.base_url, e)
+            logger.error("Failed to read properties_full from Azure Data Lake (%s): %s", self.full_path, e)
             raise
 
 
@@ -101,26 +102,23 @@ class LocalDataProvider(DataProvider):
         self,
         base_path: Optional[str] = None,
         table_path: Optional[str] = None,
-        spark_session: Optional[SparkSession] = None,
     ):
-        if not spark_session:
-            spark_session = SparkSession.builder.appName("tfg-models").getOrCreate()
-
-        super().__init__(spark_session=spark_session)
         self.base_path = str(base_path or settings.local_datalake_path)
         self.table_path = table_path or settings.properties_table_path
         logger.info("Initializing LocalDataProvider at base path: %s", self.base_path)
 
-    def read_properties_full(self) -> DataFrame:
-        """Reads properties_full from local filesystem."""
+    def read_properties_full(self) -> pd.DataFrame:
+        """Reads properties_full from local filesystem using native PyArrow."""
         gold_path = os.path.join(self.base_path, "gold", self.table_path)
         direct_path = os.path.join(self.base_path, self.table_path)
 
         file_path = gold_path if os.path.exists(gold_path) else direct_path
         logger.info("Reading properties_full from local storage: %s", file_path)
         try:
-            df = self.spark.read.format("parquet").load(file_path)
-            logger.info("Properties successfully loaded from local storage.")
+            dataset = ds.dataset(file_path, format="parquet")
+            table = dataset.to_table()
+            df = table.to_pandas()
+            logger.info("Properties successfully loaded from local storage (%d rows).", len(df))
             return df
         except Exception as e:
             logger.error("Failed to read properties_full from local storage (%s): %s", file_path, e)

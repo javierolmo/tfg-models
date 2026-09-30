@@ -1,52 +1,27 @@
 """Unit tests for data preprocessing module."""
 
 import pandas as pd
-import pytest
-from pyspark.sql import SparkSession
 
 from tfg_models.data.preprocessing import clean_property_data, prepare_features_for_model
 
 
-@pytest.fixture(scope="module")
-def spark_session():
-    spark = (
-        SparkSession.builder.master("local[1]")
-        .appName("test-preprocessing")
-        .config("spark.ui.enabled", "false")
-        .getOrCreate()
+def test_clean_property_data():
+    raw_df = pd.DataFrame(
+        [
+            # Valid Flat, Sell
+            {"property_id": 1, "type": "Flat", "operation": "Sell", "surface": 80.0, "rooms": 3, "bathrooms": 1, "price": 200000.0, "postal_code": "36201", "elevator": None, "terrace": True, "garage": None},
+            # Valid apartment, buy
+            {"property_id": 2, "type": "apartment", "operation": "buy", "surface": 95.0, "rooms": 4, "bathrooms": 2, "price": 310000.0, "postal_code": "36211", "elevator": True, "terrace": False, "garage": True},
+            # Invalid type: House
+            {"property_id": 3, "type": "House", "operation": "Sell", "surface": 150.0, "rooms": 5, "bathrooms": 3, "price": 500000.0, "postal_code": "36201", "elevator": False, "terrace": True, "garage": True},
+            # Invalid operation: Rent
+            {"property_id": 4, "type": "Flat", "operation": "Rent", "surface": 60.0, "rooms": 2, "bathrooms": 1, "price": 800.0, "postal_code": "36201", "elevator": True, "terrace": False, "garage": False},
+            # Invalid negative surface
+            {"property_id": 5, "type": "Flat", "operation": "Sell", "surface": -10.0, "rooms": 2, "bathrooms": 1, "price": 100000.0, "postal_code": "36201", "elevator": True, "terrace": False, "garage": False},
+        ]
     )
-    yield spark
-    spark.stop()
 
-
-def test_clean_property_data(spark_session):
-    raw_data = [
-        # Valid Flat, Sell
-        (1, "Flat", "Sell", 80.0, 3, 1, 200000.0, "36201", None, True, None),
-        # Valid apartment, buy
-        (2, "apartment", "buy", 95.0, 4, 2, 310000.0, "36211", True, False, True),
-        # Invalid type: House
-        (3, "House", "Sell", 150.0, 5, 3, 500000.0, "36201", False, True, True),
-        # Invalid operation: Rent
-        (4, "Flat", "Rent", 60.0, 2, 1, 800.0, "36201", True, False, False),
-    ]
-
-    schema = [
-        "property_id",
-        "type",
-        "operation",
-        "surface",
-        "rooms",
-        "bathrooms",
-        "price",
-        "postal_code",
-        "elevator",
-        "terrace",
-        "garage",
-    ]
-
-    spark_df = spark_session.createDataFrame(raw_data, schema)
-    cleaned = clean_property_data(spark_df)
+    cleaned = clean_property_data(raw_df)
 
     # Only first two rows are valid
     assert len(cleaned) == 2

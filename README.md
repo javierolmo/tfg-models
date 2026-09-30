@@ -3,7 +3,7 @@
 Machine Learning pipelines for real estate appraisal and valuation based on Azure Data Lake Storage Gen2 (`gold.properties_full`).
 
 ## Version
-**0.0.1** (See [CHANGELOG.md](file:///Users/javierolmo/IdeaProjects/tfg-models/CHANGELOG.md) for release history)
+**0.0.2** (See [CHANGELOG.md](file:///Users/javierolmo/IdeaProjects/tfg-models/CHANGELOG.md) for release history)
 
 ## Project Structure
 
@@ -15,8 +15,8 @@ tfg-models/
 │   ├── ci.yml                  # Pull request test validation & coverage
 │   └── cd.yml                  # Auto-tagging & Docker Hub publishing on push to main
 ├── CHANGELOG.md                # Release history and semantic version tracking
-├── pyproject.toml              # Project specification, version (0.0.1), dependencies, console scripts
-├── Dockerfile                  # Containerized ML environment (Python 3.12, Java 17, LightGBM)
+├── pyproject.toml              # Project specification, version (0.0.2), dependencies, console scripts
+├── Dockerfile                  # Lightweight containerized ML environment (Python 3.12, PyArrow, LightGBM)
 ├── docker-compose.yml          # Container orchestration (train, compare, predict)
 ├── src/
 │   └── tfg_models/             # 100% of the project package code
@@ -25,7 +25,7 @@ tfg-models/
 │       ├── cli.py              # Unified CLI interface
 │       ├── config.py           # Typed configuration and environment settings
 │       ├── core/               # Base abstractions (Template Method, Azure Model Handler)
-│       ├── data/               # Data cleaning and Data Lake providers
+│       ├── data/               # Data cleaning and Data Lake providers (Native PyArrow Parquet)
 │       └── models/             # Implementations (Linear Regression, LightGBM)
 └── tests/                      # Automated unit tests and test fixtures
     ├── helpers/                # Test-only fixtures (LocalModelHandler)
@@ -79,7 +79,7 @@ pytest tests/ --cov=tfg_models --cov-report=term-missing
 ### Continuous Integration (`ci.yml`)
 * **Trigger**: Pull Requests targeting `main`.
 * **Jobs**:
-  * Sets up Python 3.12 and Java 17 LTS (required for PySpark).
+  * Sets up Python 3.12.
   * Installs `libgomp1` (required for LightGBM on Linux).
   * Executes the unit test suite (`pytest`) and generates a coverage report.
   * Validates the Docker container build.
