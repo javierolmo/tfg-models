@@ -3,11 +3,11 @@
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+SRC_ROOT = str(Path(__file__).resolve().parent.parent / "src")
+if SRC_ROOT not in sys.path:
+    sys.path.insert(0, SRC_ROOT)
 
-from models.linear_regression import LinearRegressionTrainer
+from tfg_models.models.linear_regression import LinearRegressionTrainer
 
 if __name__ == '__main__':
     trainer = LinearRegressionTrainer()

@@ -1,6 +1,7 @@
 .git
 .gitignore
 .venv
+venv
 __pycache__
 */**/__pycache__
 *.pyc
@@ -11,3 +12,8 @@ __pycache__
 .DS_Store
 *.log
 local_datalake
+*.egg-info
+*/**.egg-info
+.pytest_cache
+dist
+build

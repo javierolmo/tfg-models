@@ -1,14 +1,15 @@
-"""Root entry point for tfg-models CLI."""
+#!/usr/bin/env python3
+"""Unified entry point for tfg-models execution."""
 
 import sys
 from pathlib import Path
 
-# Add project root to sys.path
-PROJECT_ROOT = str(Path(__file__).resolve().parent)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+# Ensure src/ is on Python path if running uninstalled
+src_path = str(Path(__file__).parent / "src")
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
-from cli import main
+from tfg_models.cli import main
 
 if __name__ == "__main__":
     main()

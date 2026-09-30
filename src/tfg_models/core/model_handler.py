@@ -13,7 +13,7 @@ from typing import Any, List, Optional, Tuple
 import joblib
 from azure.storage.blob import BlobServiceClient
 
-from config import settings
+from tfg_models.config import settings
 
 logger = logging.getLogger(__name__)
 

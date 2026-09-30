@@ -8,7 +8,7 @@ from typing import Optional
 
 from pyspark.sql import DataFrame, SparkSession
 
-from config import settings
+from tfg_models.config import settings
 
 logger = logging.getLogger(__name__)
 

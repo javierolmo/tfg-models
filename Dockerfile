@@ -29,9 +29,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source code
 COPY . .
 
+# Install package in editable mode so 'tfg-models' CLI is globally available in PATH
+RUN pip install --no-cache-dir -e .
+
 # Directory for mounting local models or datalake volume
 RUN mkdir -p /app/local_datalake
 
 # Default entrypoint delegates to unified CLI
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["tfg-models"]
 CMD ["--help"]
