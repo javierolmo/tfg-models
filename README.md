@@ -11,6 +11,9 @@ This project adheres to the standard Python `src/` layout:
 
 ```text
 tfg-models/
+├── .github/workflows/          # Automated CI/CD pipelines
+│   ├── ci.yml                  # Pull request test validation & coverage
+│   └── cd.yml                  # Auto-tagging & Docker Hub publishing on push to main
 ├── CHANGELOG.md                # Release history and semantic version tracking
 ├── pyproject.toml              # Project specification, version (0.0.1), dependencies, console scripts
 ├── Dockerfile                  # Containerized ML environment (Python 3.12, Java 17, LightGBM)
@@ -68,3 +71,30 @@ docker compose run --rm predict
 ```bash
 pytest tests/ --cov=tfg_models --cov-report=term-missing
 ```
+
+---
+
+## CI/CD Workflows
+
+### Continuous Integration (`ci.yml`)
+* **Triggers**: Pull Requests targeting `main` and pushes to `main`.
+* **Jobs**:
+  * Sets up Python 3.12 and Java 17 LTS (required for PySpark).
+  * Installs `libgomp1` (required for LightGBM on Linux).
+  * Executes the unit test suite (`pytest`) and generates a coverage report.
+  * Validates the Docker container build.
+
+### Continuous Deployment (`cd.yml`)
+* **Trigger**: Push/merge to `main`.
+* **Jobs**:
+  1. Extracts the version automatically from `pyproject.toml`.
+  2. Generates and pushes a Git tag `v<version>` if not already present.
+  3. Builds multi-architecture Docker images (`linux/amd64`, `linux/arm64`).
+  4. Publishes image to Docker Hub with:
+     * `<dockerhub_user>/tfg-models:v<version>`
+     * `<dockerhub_user>/tfg-models:<version>`
+     * `<dockerhub_user>/tfg-models:latest`
+
+> **Note**: For CD to publish to Docker Hub, configure the following GitHub Repository Secrets:
+> - `DOCKERHUB_USERNAME`: Your Docker Hub account username.
+> - `DOCKERHUB_TOKEN`: Personal access token from Docker Hub (Account Settings -> Security).
