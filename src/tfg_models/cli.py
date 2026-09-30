@@ -6,7 +6,7 @@ import sys
 from typing import Optional
 
 from tfg_models.config import settings
-from tfg_models.core.model_handler import AzureModelHandler, LocalModelHandler, ModelHandler
+from tfg_models.core.model_handler import AzureModelHandler, ModelHandler
 from tfg_models.models import MODEL_REGISTRY, get_model_trainer
 
 logging.basicConfig(
@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_model_handler(model_name: str) -> ModelHandler:
-    if settings.default_model_handler == "azure":
-        return AzureModelHandler(model_name)
-    return LocalModelHandler(model_name)
+    return AzureModelHandler(model_name)
 
 
 def cmd_train(args: argparse.Namespace) -> None:
@@ -81,8 +79,8 @@ def cmd_compare(args: argparse.Namespace) -> None:
     print("-" * 70)
 
     for model_name in MODEL_REGISTRY:
-        handler = _get_model_handler(model_name)
         try:
+            handler = _get_model_handler(model_name)
             report = handler.get_report(version="latest")
             metrics = report.get("metrics") or report
             mae = metrics.get("mae", 0.0)
@@ -92,7 +90,7 @@ def cmd_compare(args: argparse.Namespace) -> None:
             print(
                 f"{model_name:<20} | {mae:<12,.2f} | {rmse:<12,.2f} | {r2:<8.4f} | {version:<15}"
             )
-        except Exception:
+        except Exception as e:
             print(f"{model_name:<20} | {'(no trained model found)':<45}")
 
     print("=" * 70 + "\n")
@@ -100,8 +98,12 @@ def cmd_compare(args: argparse.Namespace) -> None:
 
 def cmd_versions(args: argparse.Namespace) -> None:
     """Handles the 'versions' subcommand."""
-    handler = _get_model_handler(args.model)
-    versions = handler.list_versions()
+    try:
+        handler = _get_model_handler(args.model)
+        versions = handler.list_versions()
+    except Exception as e:
+        print(f"Error accessing Azure Storage: {e}")
+        return
 
     print("\n" + "=" * 40)
     print(f"SAVED VERSIONS FOR '{args.model}'")

@@ -10,7 +10,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 from tfg_models.config import settings
-from tfg_models.core.model_handler import AzureModelHandler, LocalModelHandler, ModelHandler
+from tfg_models.core.model_handler import AzureModelHandler, ModelHandler
 from tfg_models.data.preprocessing import clean_property_data, prepare_features_for_model
 from tfg_models.data.providers import AzureDataProvider, DataProvider, LocalDataProvider
 
@@ -52,12 +52,9 @@ class BaseModelTrainer(ABC):
 
     @property
     def model_handler(self) -> ModelHandler:
-        """Lazily initializes the model persistence handler."""
+        """Lazily initializes the model persistence handler (defaults to production AzureModelHandler)."""
         if self._model_handler is None:
-            if settings.default_model_handler == "azure":
-                self._model_handler = AzureModelHandler(self.model_name)
-            else:
-                self._model_handler = LocalModelHandler(self.model_name)
+            self._model_handler = AzureModelHandler(self.model_name)
         return self._model_handler
 
     def load_data(self) -> pd.DataFrame:
@@ -71,7 +68,8 @@ class BaseModelTrainer(ABC):
     def prepare_features(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, List[str]]:
         """Prepares features and target from cleaned data."""
         logger.info("[%s] Step 2: Preparing features (encoding: %s)...", self.model_name, self.encoding)
-        return prepare_features_for_model(df, encoding=self.encoding)
+        X, y = prepare_features_for_model(df, encoding=self.encoding)
+        return X, y, list(X.columns)
 
     def split_data(
         self, X: pd.DataFrame, y: pd.Series
@@ -103,14 +101,10 @@ class BaseModelTrainer(ABC):
         report = {
             "model_name": self.model_name,
             "encoding": self.encoding,
-            "metrics": {
-                "mae": mae,
-                "rmse": rmse,
-                "r2_score": r2,
-            },
-            "dataset_info": {
-                "test_samples": len(y_test),
-            },
+            "mae": mae,
+            "rmse": rmse,
+            "r2_score": r2,
+            "test_samples": len(y_test),
         }
 
         logger.info(

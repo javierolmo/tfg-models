@@ -29,11 +29,13 @@ dependencies = [
     "azure-storage-blob>=12.24.0",
     "azure-core>=1.32.0",
     "python-dotenv>=1.0.0",
+    "setuptools>=70.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
 ]
 
 [project.scripts]

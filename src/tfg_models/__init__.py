@@ -5,7 +5,6 @@ __version__ = "0.0.1"
 from tfg_models.config import settings
 from tfg_models.core.model_handler import (
     AzureModelHandler,
-    LocalModelHandler,
     ModelHandler,
 )
 from tfg_models.core.trainer import BaseModelTrainer
@@ -24,7 +23,6 @@ __all__ = [
     "__version__",
     "settings",
     "ModelHandler",
-    "LocalModelHandler",
     "AzureModelHandler",
     "BaseModelTrainer",
     "DataProvider",

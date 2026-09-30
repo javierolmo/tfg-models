@@ -15,5 +15,7 @@ local_datalake
 *.egg-info
 */**.egg-info
 .pytest_cache
+.coverage
+htmlcov
 dist
 build
