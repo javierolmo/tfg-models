@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+__pycache__
+*/**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.idea
+.vscode
+.DS_Store
+*.log
+local_datalake

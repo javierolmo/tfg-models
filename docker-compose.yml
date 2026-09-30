@@ -1,0 +1,57 @@
+services:
+  # Service for model training
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tfg-models:latest
+    environment:
+      - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT:-tfgdatalake}
+      - AZURE_CONTAINER=${AZURE_CONTAINER:-gold}
+      - PROPERTIES_PATH=${PROPERTIES_PATH:-properties_full}
+      - AZURE_STORAGE_ACCOUNT_KEY=${AZURE_STORAGE_ACCOUNT_KEY:-}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - DATA_PROVIDER=${DATA_PROVIDER:-azure}
+      - MODEL_HANDLER=${MODEL_HANDLER:-local}
+    volumes:
+      - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    command: ["train", "--model", "all"]
+
+  # Service for comparing model performance
+  compare:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tfg-models:latest
+    environment:
+      - MODEL_HANDLER=${MODEL_HANDLER:-local}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+    volumes:
+      - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    command: ["compare"]
+
+  # Service for running property valuation inference
+  predict:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tfg-models:latest
+    environment:
+      - MODEL_HANDLER=${MODEL_HANDLER:-local}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+    volumes:
+      - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    command:
+      - "predict"
+      - "--model"
+      - "lightgbm"
+      - "--surface"
+      - "95"
+      - "--rooms"
+      - "3"
+      - "--bathrooms"
+      - "2"
+      - "--postal-code"
+      - "36211"
+      - "--elevator"
+      - "--terrace"
