@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tfg-models"
+version = "0.0.1"
+description = "Machine Learning pipelines and models for real estate valuation"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Javier Olmo", email = "olmo.injerto.javier@gmail.com" }
+]
+keywords = ["machine-learning", "real-estate", "lightgbm", "pyspark", "azure-datalake"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pyspark==3.5.4",
+    "pandas>=2.2.0",
+    "numpy>=2.0.0",
+    "scikit-learn>=1.6.0",
+    "lightgbm>=4.7.0",
+    "pyarrow>=18.0.0",
+    "joblib>=1.4.0",
+    "azure-storage-blob>=12.24.0",
+    "azure-core>=1.32.0",
+    "python-dotenv>=1.0.0",
+    "setuptools>=70.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+]
+
+[project.scripts]
+tfg-models = "tfg_models.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
