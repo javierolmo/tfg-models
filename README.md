@@ -77,7 +77,7 @@ pytest tests/ --cov=tfg_models --cov-report=term-missing
 ## CI/CD Workflows
 
 ### Continuous Integration (`ci.yml`)
-* **Triggers**: Pull Requests targeting `main` and pushes to `main`.
+* **Trigger**: Pull Requests targeting `main`.
 * **Jobs**:
   * Sets up Python 3.12 and Java 17 LTS (required for PySpark).
   * Installs `libgomp1` (required for LightGBM on Linux).
