@@ -1,111 +1,14 @@
-import json
-import logging
-import os
+"""Linear regression training entry point."""
+
 import sys
 from pathlib import Path
 
-# Add project root to sys.path so modules can be imported when running script directly
 PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-import numpy as np
-import pandas as pd
-from pyspark.sql import DataFrame
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.model_selection import train_test_split
-
-from dataproviders import AzureDataProvider, DataProvider, LocalDataProvider
-from modelhandler import AzureModelHandler, LocalModelHandler, ModelHandler
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-# Determine provider and handler based on environment (defaults to Azure for data, local for model saving)
-DATA_PROVIDER_TYPE = os.environ.get("DATA_PROVIDER", "azure").lower()
-MODEL_HANDLER_TYPE = os.environ.get("MODEL_HANDLER", "local").lower()
-
-if DATA_PROVIDER_TYPE == "azure":
-    data_provider: DataProvider = AzureDataProvider()
-else:
-    data_provider: DataProvider = LocalDataProvider()
-
-if MODEL_HANDLER_TYPE == "azure":
-    model_handler: ModelHandler = AzureModelHandler("linear_regression")
-else:
-    model_handler: ModelHandler = LocalModelHandler("linear_regression")
-
-
-def clean_data(properties_df: DataFrame) -> pd.DataFrame:
-    """Cleans the input Spark DataFrame and returns a pandas DataFrame."""
-    logger.info("Cleaning data...")
-    clean_df = (
-        properties_df
-        .filter("lower(type) in ('flat', 'apartment')")
-        .filter("lower(operation) in ('sell', 'buy')")
-        .select("surface", "rooms", "bathrooms", "price", "elevator", "terrace", "garage", "postal_code")
-        .fillna({"elevator": False, "terrace": False, "garage": False})
-        .dropna(subset=["surface", "rooms", "bathrooms", "price", "postal_code"])
-        .filter("surface > 0 AND rooms > 0 AND bathrooms > 0 AND price > 0")
-    )
-    logger.info(f"Cleaned dataset size: {clean_df.count()} rows")
-    return clean_df.toPandas()
-
-
-def generate_report(target_test: pd.Series, y_pred: np.ndarray, model: LinearRegression, features: pd.DataFrame) -> dict:
-    """Generates a performance report for the model."""
-    logger.info("Generating report...")
-    mae = mean_absolute_error(target_test, y_pred)
-    mse = mean_squared_error(target_test, y_pred)
-    rmse = np.sqrt(mse)
-
-    report = {
-        "mae": float(mae),
-        "rmse": float(rmse),
-        "intercept": float(model.intercept_),
-        "features": {str(feature): float(coef) for feature, coef in zip(features.columns, model.coef_)},
-    }
-    logger.info(f"Report generated: MAE={mae:.2f}, RMSE={rmse:.2f}")
-    return report
-
+from models.linear_regression import LinearRegressionTrainer
 
 if __name__ == '__main__':
-    logger.info("Reading properties dataset (properties_full)...")
-    properties_df = data_provider.read_properties_full()
-
-    # Clean and preprocess data
-    clean_df = clean_data(properties_df)
-
-    logger.info("Converting postal codes to dummy variables...")
-    properties = pd.get_dummies(clean_df, columns=["postal_code"], drop_first=True)
-
-    # Separate features and target
-    features = properties.drop(columns=["price"])
-    target = properties["price"]
-
-    logger.info("Splitting data into training and testing sets (size: %d)...", len(properties))
-    features_train, features_test, target_train, target_test = train_test_split(
-        features, target, test_size=0.2, random_state=42
-    )
-
-    logger.info("Training Linear Regression model...")
-    model = LinearRegression()
-    model.fit(features_train, target_train)
-
-    logger.info("Making predictions...")
-    y_pred = model.predict(features_test)
-
-    # Generate and print report
-    report = generate_report(target_test, y_pred, model, features_train)
-    logger.info("Model performance summary:")
-    logger.info("MAE: %.2f | RMSE: %.2f | Intercept: %.2f", report["mae"], report["rmse"], report["intercept"])
-
-    logger.info("Saving model and metadata...")
-    model_handler.save_model(
-        model,
-        features_train.columns,
-        report=report,
-    )
-    logger.info("Model and metadata saved successfully.")
+    trainer = LinearRegressionTrainer()
+    trainer.run()

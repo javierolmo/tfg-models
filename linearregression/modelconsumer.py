@@ -1,66 +1,28 @@
-import os
+"""Linear regression inference consumer."""
+
 import sys
 from pathlib import Path
 
-# Add project root to sys.path so modules can be imported when running script directly
 PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-import numpy as np
-import pandas as pd
-from sklearn.linear_model import LinearRegression
-
-from modelhandler import AzureModelHandler, LocalModelHandler, ModelHandler
-
-MODEL_HANDLER_TYPE = os.environ.get("MODEL_HANDLER", "azure").lower()
-if MODEL_HANDLER_TYPE == "azure":
-    model_handler: ModelHandler = AzureModelHandler("linear_regression")
-else:
-    model_handler: ModelHandler = LocalModelHandler("linear_regression")
+from models.linear_regression import LinearRegressionTrainer
 
 
-def predict(
-    model: LinearRegression,
-    features: list,
-    surface: int,
-    rooms: int,
-    bathrooms: int,
-    elevator: bool,
-    terrace: bool,
-    garage: bool,
-    postal_code: int,
-) -> np.ndarray:
-    new_data = {
-        "surface": [surface],
-        "rooms": [rooms],
-        "bathrooms": [bathrooms],
-        "elevator": [int(elevator)],
-        "terrace": [int(terrace)],
-        "garage": [int(garage)],
-        f"postal_code_{postal_code}": [1],
-    }
-
-    # Convert to pandas DataFrame
-    new_df = pd.DataFrame(new_data)
-
-    # Ensure all trained features are present, filling missing with 0
-    new_df = new_df.reindex(columns=features, fill_value=0)
-
-    # Align column ordering
-    new_df = new_df[features]
-
-    # Predict with loaded model
-    predictions = model.predict(new_df)
-    print("Predictions:", predictions)
-    return predictions
+def predict(surface: int, rooms: int, bathrooms: int, postal_code: int, **kwargs):
+    trainer = LinearRegressionTrainer()
+    return trainer.predict_sample(
+        surface=surface,
+        rooms=rooms,
+        bathrooms=bathrooms,
+        postal_code=postal_code,
+        **kwargs,
+    )
 
 
 if __name__ == '__main__':
-    model, features = model_handler.load_model()
-    predict(
-        model=model,
-        features=features,
+    price = predict(
         surface=80,
         rooms=3,
         bathrooms=1,
@@ -69,3 +31,4 @@ if __name__ == '__main__':
         garage=False,
         postal_code=36211,
     )
+    print(f"Predictions: [{price}]")
