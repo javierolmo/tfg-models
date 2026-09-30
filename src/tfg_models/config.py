@@ -57,10 +57,10 @@ class Settings:
     default_test_size: float = 0.2
     default_random_state: int = 42
 
-    # Spark Package Dependencies
-    spark_jars_packages: str = (
-        "org.apache.hadoop:hadoop-azure:3.4.0,com.microsoft.azure:azure-storage:8.6.6"
-    )
+    @property
+    def azure_storage_connection_string(self) -> Optional[str]:
+        """Convenience property for connection string."""
+        return self.azure_connection_string
 
     @property
     def azure_properties_url(self) -> str:

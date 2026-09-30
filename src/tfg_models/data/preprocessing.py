@@ -4,47 +4,64 @@ import logging
 from typing import Tuple
 
 import pandas as pd
-from pyspark.sql import DataFrame
 
 logger = logging.getLogger(__name__)
 
 
-def clean_property_data(properties_df: DataFrame) -> pd.DataFrame:
+def clean_property_data(properties_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Cleans raw property Spark DataFrame:
+    Cleans raw property DataFrame using vectorized Pandas operations:
     - Filters by apartment/flat type and sell/buy operations.
-    - Imputes boolean flags (elevator, terrace, garage) with False if NULL.
+    - Imputes boolean flags (elevator, terrace, garage) with 0 if NULL/False.
     - Drops records with nulls in critical predictors (surface, rooms, bathrooms, postal_code, price).
     - Ensures positive physical measurements and price.
-    - Converts to Pandas DataFrame and standardizes data types.
+    - Standardizes data types.
     """
     logger.info("Cleaning property dataset...")
-    clean_spark_df = (
-        properties_df
-        .filter("lower(type) in ('flat', 'apartment')")
-        .filter("lower(operation) in ('sell', 'buy')")
-        .select("surface", "rooms", "bathrooms", "price", "elevator", "terrace", "garage", "postal_code")
-        .fillna({"elevator": False, "terrace": False, "garage": False})
-        .dropna(subset=["surface", "rooms", "bathrooms", "price", "postal_code"])
-        .filter("surface > 0 AND rooms > 0 AND bathrooms > 0 AND price > 0")
+    df = properties_df.copy()
+
+    # Filter by property type and operation (case-insensitive)
+    if "type" in df.columns:
+        type_mask = df["type"].astype(str).str.lower().isin(["flat", "apartment"])
+        df = df[type_mask]
+
+    if "operation" in df.columns:
+        op_mask = df["operation"].astype(str).str.lower().isin(["sell", "buy"])
+        df = df[op_mask]
+
+    # Select relevant columns if present
+    target_columns = ["surface", "rooms", "bathrooms", "price", "elevator", "terrace", "garage", "postal_code"]
+    available_cols = [c for c in target_columns if c in df.columns]
+    df = df[available_cols]
+
+    # Impute boolean flags with 0 if null
+    for bool_col in ["elevator", "terrace", "garage"]:
+        if bool_col in df.columns:
+            df[bool_col] = df[bool_col].fillna(0).astype(int)
+
+    # Drop nulls in critical predictors and target
+    critical_cols = [c for c in ["surface", "rooms", "bathrooms", "price", "postal_code"] if c in df.columns]
+    df = df.dropna(subset=critical_cols)
+
+    # Ensure numeric types
+    for num_col in ["surface", "rooms", "bathrooms", "price"]:
+        if num_col in df.columns:
+            df[num_col] = pd.to_numeric(df[num_col], errors="coerce")
+
+    # Drop any rows where coercion created NaNs
+    df = df.dropna(subset=[c for c in ["surface", "rooms", "bathrooms", "price"] if c in df.columns])
+
+    # Filter positive physical measurements and price
+    positive_mask = (
+        (df["surface"] > 0)
+        & (df["rooms"] > 0)
+        & (df["bathrooms"] > 0)
+        & (df["price"] > 0)
     )
+    df = df[positive_mask]
 
-    count = clean_spark_df.count()
-    logger.info("Cleaned dataset size: %d rows", count)
-
-    pdf = clean_spark_df.toPandas()
-
-    # Convert booleans to binary integer indicators (0 / 1)
-    for col in ["elevator", "terrace", "garage"]:
-        if col in pdf.columns:
-            pdf[col] = pdf[col].astype(int)
-
-    # Ensure numeric columns are properly typed
-    for col in ["surface", "rooms", "bathrooms", "price"]:
-        if col in pdf.columns:
-            pdf[col] = pd.to_numeric(pdf[col], errors="coerce")
-
-    return pdf
+    logger.info("Cleaned dataset size: %d rows", len(df))
+    return df
 
 
 def prepare_features_for_model(

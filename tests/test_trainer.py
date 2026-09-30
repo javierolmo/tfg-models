@@ -43,11 +43,7 @@ def _create_synthetic_data():
 
 def test_base_trainer_run_lifecycle(tmp_path):
     mock_data_provider = MagicMock()
-    mock_spark_df = MagicMock()
-    mock_spark_df.toPandas.return_value = _create_synthetic_data()
-
-    # Pass DataFrame directly so clean_property_data works
-    mock_data_provider.read_properties_full.return_value = mock_spark_df
+    mock_data_provider.read_properties_full.return_value = _create_synthetic_data()
 
     handler = LocalModelHandler("dummy_model", base_path=str(tmp_path))
 

@@ -13,12 +13,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Java 17 LTS (Required for PySpark)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:

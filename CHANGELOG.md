@@ -14,9 +14,11 @@ All notable changes to this project will be documented in this file.
 - Suite de tests unitarios automatizados con 89% de cobertura de código.
 
 ### Changed
+- Migrada la ingesta de datos a PyArrow Parquet nativo, reduciendo la imagen Docker de 2.14GB a 948MB.
 - Persistencia en producción delegada exclusivamente a `AzureModelHandler`.
 - Limpieza y preprocesamiento centralizados en `data/preprocessing.py`.
 
 ### Removed
+- Eliminada dependencia de PySpark y Java 17 en favor de PyArrow y Pandas nativos.
 - Eliminado todo el código y wrappers obsoletos fuera del directorio `src/`.
 - Extraído `LocalModelHandler` fuera de producción hacia fixtures de test.

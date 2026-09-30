@@ -42,7 +42,7 @@ class BaseModelTrainer(ABC):
 
     @property
     def data_provider(self) -> DataProvider:
-        """Lazily initializes the data provider to avoid loading PySpark on inference."""
+        """Lazily initializes the data provider."""
         if self._data_provider is None:
             if settings.default_data_provider == "azure":
                 self._data_provider = AzureDataProvider()
@@ -58,10 +58,10 @@ class BaseModelTrainer(ABC):
         return self._model_handler
 
     def load_data(self) -> pd.DataFrame:
-        """Loads properties_full via the data provider and returns a pandas DataFrame."""
+        """Loads properties_full via the data provider and returns a cleaned pandas DataFrame."""
         logger.info("[%s] Step 1: Loading raw data from data provider...", self.model_name)
-        spark_df = self.data_provider.read_properties_full()
-        pdf = clean_property_data(spark_df)
+        raw_df = self.data_provider.read_properties_full()
+        pdf = clean_property_data(raw_df)
         logger.info("[%s] Cleaned dataset shape: %s", self.model_name, pdf.shape)
         return pdf
 
