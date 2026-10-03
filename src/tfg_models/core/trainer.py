@@ -10,7 +10,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 from tfg_models.config import settings
-from tfg_models.core.model_handler import AzureModelHandler, ModelHandler
+from tfg_models.core.model_handler import ModelHandler, get_model_handler
 from tfg_models.data.preprocessing import clean_property_data, prepare_features_for_model
 from tfg_models.data.providers import AzureDataProvider, DataProvider, LocalDataProvider
 
@@ -52,9 +52,9 @@ class BaseModelTrainer(ABC):
 
     @property
     def model_handler(self) -> ModelHandler:
-        """Lazily initializes the model persistence handler (defaults to production AzureModelHandler)."""
+        """Lazily initializes the model persistence handler."""
         if self._model_handler is None:
-            self._model_handler = AzureModelHandler(self.model_name)
+            self._model_handler = get_model_handler(self.model_name)
         return self._model_handler
 
     def load_data(self) -> pd.DataFrame:

@@ -6,7 +6,7 @@ import sys
 from typing import Optional
 
 from tfg_models.config import settings
-from tfg_models.core.model_handler import AzureModelHandler, ModelHandler
+from tfg_models.core.model_handler import ModelHandler, get_model_handler
 from tfg_models.models import MODEL_REGISTRY, get_model_trainer
 
 logging.basicConfig(
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_model_handler(model_name: str) -> ModelHandler:
-    return AzureModelHandler(model_name)
+    return get_model_handler(model_name)
 
 
 def cmd_train(args: argparse.Namespace) -> None:
@@ -102,7 +102,7 @@ def cmd_versions(args: argparse.Namespace) -> None:
         handler = _get_model_handler(args.model)
         versions = handler.list_versions()
     except Exception as e:
-        print(f"Error accessing Azure Storage: {e}")
+        print(f"Error accessing storage: {e}")
         return
 
     print("\n" + "=" * 40)

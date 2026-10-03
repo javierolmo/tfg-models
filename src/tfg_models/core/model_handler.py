@@ -1,4 +1,4 @@
-"""Model handler interfaces and Azure Blob Storage implementation for saving, loading, and versioning models."""
+"""Model handler interfaces and implementations (Azure Blob Storage and Local filesystem) for saving, loading, and versioning models."""
 
 import io
 import json
@@ -7,6 +7,7 @@ import os
 import subprocess
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 import joblib
@@ -179,4 +180,105 @@ class AzureModelHandler(ModelHandler):
         return sorted(list(versions), reverse=True)
 
 
-__all__ = ["ModelHandler", "AzureModelHandler"]
+class LocalModelHandler(ModelHandler):
+    """Model handler persisting models to the local filesystem for offline experiments and container runs."""
+
+    def __init__(self, model_name: str, base_path: Optional[str] = None):
+        super().__init__(model_name)
+        self.base_path = Path(base_path or settings.local_datalake_path)
+        self.models_dir = self.base_path / "models" / self.model_name
+
+    def _prepare_metadata(self, report: dict, version: str) -> dict:
+        metadata = dict(report)
+        metadata["version"] = version
+        metadata["saved_at"] = datetime.now(timezone.utc).isoformat()
+        metadata["git_commit"] = _get_git_commit_hash()
+        return metadata
+
+    def save_model(
+        self,
+        model: Any,
+        features: Any,
+        report: dict,
+        version: Optional[str] = None,
+    ) -> str:
+        version_id = version or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        metadata = self._prepare_metadata(report, version_id)
+
+        target_dirs = [
+            self.models_dir / version_id,
+            self.models_dir / "latest",
+            self.models_dir,
+        ]
+
+        logger.info("Saving local model '%s' (version: %s)", self.model_name, version_id)
+        for directory in target_dirs:
+            directory.mkdir(parents=True, exist_ok=True)
+            joblib.dump(model, directory / "model.pkl")
+            joblib.dump(features, directory / "features.pkl")
+            with open(directory / "report.json", "w", encoding="utf-8") as f:
+                json.dump(metadata, f, indent=2)
+
+        logger.info("Model '%s' (version %s) successfully saved locally.", self.model_name, version_id)
+        return version_id
+
+    def load_model(self, version: str = "latest") -> Tuple[Any, Any]:
+        target_dir = self.models_dir / version
+        if not (target_dir / "model.pkl").exists() and version == "latest":
+            target_dir = self.models_dir
+
+        if not (target_dir / "model.pkl").exists():
+            raise FileNotFoundError(f"Model not found at: {target_dir / 'model.pkl'}")
+
+        logger.info("Loading local model from %s", target_dir)
+        model = joblib.load(target_dir / "model.pkl")
+        features = joblib.load(target_dir / "features.pkl")
+        return model, features
+
+    def get_report(self, version: str = "latest") -> dict:
+        target_dir = self.models_dir / version
+        if not (target_dir / "report.json").exists() and version == "latest":
+            target_dir = self.models_dir
+
+        report_file = target_dir / "report.json"
+        if not report_file.exists():
+            raise FileNotFoundError(f"Report not found at: {report_file}")
+
+        with open(report_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def list_versions(self) -> List[str]:
+        if not self.models_dir.exists():
+            return []
+        versions = [
+            d.name
+            for d in self.models_dir.iterdir()
+            if d.is_dir() and d.name not in ("latest", "__pycache__")
+        ]
+        return sorted(versions, reverse=True)
+
+
+def get_model_handler(
+    model_name: str,
+    handler_type: Optional[str] = None,
+    **kwargs: Any,
+) -> ModelHandler:
+    """Factory creating a ModelHandler instance based on settings or explicit argument."""
+    handler = (handler_type or settings.default_model_handler).lower()
+    if handler == "local":
+        return LocalModelHandler(model_name, **kwargs)
+    elif handler == "azure":
+        return AzureModelHandler(model_name, **kwargs)
+    else:
+        raise ValueError(
+            f"Unknown model handler: '{handler}'. Expected 'azure' or 'local'."
+        )
+
+
+__all__ = [
+    "ModelHandler",
+    "AzureModelHandler",
+    "LocalModelHandler",
+    "get_model_handler",
+    "_get_git_commit_hash",
+]

@@ -4,11 +4,16 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
-import pyarrow.dataset as ds
-from pyarrow.fs import AzureFileSystem
+
+try:
+    import pyarrow.dataset as ds
+    from pyarrow.fs import AzureFileSystem
+except ImportError:  # pragma: no cover
+    ds = None
+    AzureFileSystem = None
 
 from tfg_models.config import settings
 
@@ -46,8 +51,14 @@ class AzureDataProvider(DataProvider):
         container: Optional[str] = None,
         table_path: Optional[str] = None,
         account_key: Optional[str] = None,
-        filesystem: Optional[AzureFileSystem] = None,
+        filesystem: Optional[Any] = None,
     ):
+        if ds is None or AzureFileSystem is None:
+            raise ImportError(
+                "pyarrow is required for AzureDataProvider. "
+                "Install training dependencies with: pip install 'tfg-models[train]'"
+            )
+
         self.storage_account = storage_account or settings.azure_storage_account
         self.container = container or settings.azure_container
         self.table_path = table_path or settings.properties_table_path
@@ -109,6 +120,12 @@ class LocalDataProvider(DataProvider):
 
     def read_properties_full(self) -> pd.DataFrame:
         """Reads properties_full from local filesystem using native PyArrow."""
+        if ds is None:
+            raise ImportError(
+                "pyarrow is required for LocalDataProvider. "
+                "Install training dependencies with: pip install 'tfg-models[train]'"
+            )
+
         gold_path = os.path.join(self.base_path, "gold", self.table_path)
         direct_path = os.path.join(self.base_path, self.table_path)
 

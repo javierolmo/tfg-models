@@ -1,0 +1,30 @@
+# ==============================================================================
+# Full Training & Pipeline Image (PyArrow, Azure Data Lake, Model Training)
+# ==============================================================================
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    LOCAL_DATALAKE_PATH=/app/local_datalake \
+    PORT=8001
+
+# Install OpenMP runtime required by LightGBM
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package metadata and source files
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+# Install full training dependencies (including PyArrow for Azure Data Lake)
+RUN pip install --no-cache-dir ".[train]" \
+    && mkdir -p /app/local_datalake
+
+EXPOSE 8001
+
+# Start FastAPI Training & Experimentation API
+ENTRYPOINT ["uvicorn", "tfg_models.api.training:app"]
+CMD ["--host", "0.0.0.0", "--port", "8001"]
