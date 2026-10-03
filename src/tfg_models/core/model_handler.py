@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 import joblib
+from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
 from tfg_models.config import settings
@@ -78,22 +79,35 @@ class AzureModelHandler(ModelHandler):
     def __init__(
         self,
         model_name: str,
+        storage_account: Optional[str] = None,
         connection_string: Optional[str] = None,
+        account_key: Optional[str] = None,
         container_name: Optional[str] = None,
+        client_id: Optional[str] = None,
     ):
         super().__init__(model_name)
+        self.storage_account = storage_account or settings.azure_storage_account
         self.connection_string = connection_string or settings.azure_connection_string
+        self.account_key = account_key or settings.azure_storage_account_key
         self.container_name = container_name or settings.azure_models_container
+        self.client_id = client_id or settings.azure_client_id
         self._blob_service_client: Optional[BlobServiceClient] = None
 
     def _get_container_client(self):
-        if not self.connection_string:
-            raise ValueError(
-                "Azure Storage connection string is required. Set AZURE_STORAGE_CONNECTION_STRING "
-                "or tfgbs_connection_string environment variable."
-            )
         if self._blob_service_client is None:
-            self._blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
+            if self.connection_string:
+                self._blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
+            elif self.account_key:
+                account_url = f"https://{self.storage_account}.blob.core.windows.net"
+                self._blob_service_client = BlobServiceClient(account_url=account_url, credential=self.account_key)
+            else:
+                account_url = f"https://{self.storage_account}.blob.core.windows.net"
+                credential = (
+                    DefaultAzureCredential(managed_identity_client_id=self.client_id)
+                    if self.client_id
+                    else DefaultAzureCredential()
+                )
+                self._blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
         return self._blob_service_client.get_container_client(self.container_name)
 
     def _upload_bytes(self, data: bytes, remote_path: str) -> None:

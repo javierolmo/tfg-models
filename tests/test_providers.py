@@ -70,3 +70,18 @@ def test_azure_data_provider_connection_string_extraction():
             assert provider.storage_account == "extracted_acc"
             assert provider.account_key == "extracted_key"
             mock_afs.assert_called_once_with(account_name="extracted_acc", account_key="extracted_key")
+
+
+def test_azure_data_provider_managed_identity():
+    with patch("tfg_models.data.providers.settings") as mock_settings:
+        mock_settings.azure_storage_account = "managed_acc"
+        mock_settings.azure_container = "gold"
+        mock_settings.properties_table_path = "properties_full"
+        mock_settings.azure_storage_account_key = None
+        mock_settings.azure_connection_string = None
+        mock_settings.azure_client_id = "test-client-id"
+        with patch("tfg_models.data.providers.AzureFileSystem") as mock_afs:
+            provider = AzureDataProvider()
+            assert provider.storage_account == "managed_acc"
+            assert provider.client_id == "test-client-id"
+            mock_afs.assert_called_once_with(account_name="managed_acc", client_id="test-client-id")

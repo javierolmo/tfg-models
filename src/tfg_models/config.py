@@ -39,6 +39,9 @@ class Settings:
             or os.environ.get("tfgbs_connection_string")
         )
     )
+    azure_client_id: Optional[str] = field(
+        default_factory=lambda: os.environ.get("AZURE_CLIENT_ID")
+    )
 
     # Local Storage Configuration
     local_datalake_path: Path = field(

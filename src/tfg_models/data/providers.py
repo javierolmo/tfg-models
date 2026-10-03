@@ -37,6 +37,7 @@ class AzureDataProvider(DataProvider):
         container: Optional[str] = None,
         table_path: Optional[str] = None,
         account_key: Optional[str] = None,
+        client_id: Optional[str] = None,
         filesystem: Optional[Any] = None,
     ):
         if ds is None or AzureFileSystem is None:
@@ -49,6 +50,7 @@ class AzureDataProvider(DataProvider):
         self.container = container or settings.azure_container
         self.table_path = table_path or settings.properties_table_path
         self.account_key = account_key or settings.azure_storage_account_key
+        self.client_id = client_id or settings.azure_client_id
 
         # If account_key is missing but connection string is provided, attempt extraction
         if not self.account_key and settings.azure_connection_string:
@@ -69,7 +71,10 @@ class AzureDataProvider(DataProvider):
                 account_key=self.account_key,
             )
         else:
-            self.fs = AzureFileSystem(account_name=self.storage_account)
+            kwargs = {}
+            if self.client_id:
+                kwargs["client_id"] = self.client_id
+            self.fs = AzureFileSystem(account_name=self.storage_account, **kwargs)
 
         self.full_path = f"{self.container}/{self.table_path}".strip("/")
         logger.info(
