@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def clean_property_data(properties_df: pd.DataFrame) -> pd.DataFrame:
     """
     Cleans raw property DataFrame using vectorized Pandas operations:
-    - Filters by apartment/flat type and sell/buy operations (supporting standardized uppercase & legacy).
+    - Filters strictly by Gold layer contract: type 'FLAT' and operation 'SELL'.
     - Imputes boolean flags (elevator, terrace, garage) with 0 if NULL/False.
     - Standardizes postal codes to 5-digit zero-padded strings (e.g. 8001 -> '08001', 36211.0 -> '36211').
     - Drops records with nulls in critical predictors (surface, rooms, bathrooms, postal_code, price).
@@ -22,19 +22,12 @@ def clean_property_data(properties_df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Cleaning property dataset...")
     df = properties_df.copy()
 
-    # Filter by property type and operation (case-insensitive, handling standardized and legacy values)
+    # Filter strictly by Gold standard contract: type FLAT and operation SELL
     if "type" in df.columns:
-        valid_types = [
-            "flat", "apartment", "piso", "ático", "atico",
-            "duplex", "dúplex", "estudio", "studio", "loft", "penthouse"
-        ]
-        type_mask = df["type"].astype(str).str.lower().isin(valid_types)
-        df = df[type_mask]
+        df = df[df["type"].astype(str).str.upper() == "FLAT"]
 
     if "operation" in df.columns:
-        valid_ops = ["sell", "sale", "buy", "compra", "comprar", "venta"]
-        op_mask = df["operation"].astype(str).str.lower().isin(valid_ops)
-        df = df[op_mask]
+        df = df[df["operation"].astype(str).str.upper() == "SELL"]
 
     # Select relevant columns if present
     target_columns = ["surface", "rooms", "bathrooms", "price", "elevator", "terrace", "garage", "postal_code"]

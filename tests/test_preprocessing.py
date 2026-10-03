@@ -10,15 +10,15 @@ def test_clean_property_data():
     raw_df = pd.DataFrame(
         [
             # Valid Flat, Sell
-            {"property_id": 1, "type": "Flat", "operation": "Sell", "surface": 80.0, "rooms": 3, "bathrooms": 1, "price": 200000.0, "postal_code": "36201", "elevator": None, "terrace": True, "garage": None},
-            # Valid apartment, buy
-            {"property_id": 2, "type": "apartment", "operation": "buy", "surface": 95.0, "rooms": 4, "bathrooms": 2, "price": 310000.0, "postal_code": "36211", "elevator": True, "terrace": False, "garage": True},
+            {"property_id": 1, "type": "FLAT", "operation": "SELL", "surface": 80.0, "rooms": 3, "bathrooms": 1, "price": 200000.0, "postal_code": "36201", "elevator": None, "terrace": True, "garage": None},
+            # Valid Flat, Sell
+            {"property_id": 2, "type": "flat", "operation": "sell", "surface": 95.0, "rooms": 4, "bathrooms": 2, "price": 310000.0, "postal_code": "36211", "elevator": True, "terrace": False, "garage": True},
             # Invalid type: House
-            {"property_id": 3, "type": "House", "operation": "Sell", "surface": 150.0, "rooms": 5, "bathrooms": 3, "price": 500000.0, "postal_code": "36201", "elevator": False, "terrace": True, "garage": True},
+            {"property_id": 3, "type": "HOUSE", "operation": "SELL", "surface": 150.0, "rooms": 5, "bathrooms": 3, "price": 500000.0, "postal_code": "36201", "elevator": False, "terrace": True, "garage": True},
             # Invalid operation: Rent
-            {"property_id": 4, "type": "Flat", "operation": "Rent", "surface": 60.0, "rooms": 2, "bathrooms": 1, "price": 800.0, "postal_code": "36201", "elevator": True, "terrace": False, "garage": False},
+            {"property_id": 4, "type": "FLAT", "operation": "RENT", "surface": 60.0, "rooms": 2, "bathrooms": 1, "price": 800.0, "postal_code": "36201", "elevator": True, "terrace": False, "garage": False},
             # Invalid negative surface
-            {"property_id": 5, "type": "Flat", "operation": "Sell", "surface": -10.0, "rooms": 2, "bathrooms": 1, "price": 100000.0, "postal_code": "36201", "elevator": True, "terrace": False, "garage": False},
+            {"property_id": 5, "type": "FLAT", "operation": "SELL", "surface": -10.0, "rooms": 2, "bathrooms": 1, "price": 100000.0, "postal_code": "36201", "elevator": True, "terrace": False, "garage": False},
         ]
     )
 
