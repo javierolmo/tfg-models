@@ -32,7 +32,11 @@ jobs:
 
       - name: Run unit test suite with coverage
         run: |
-          pytest tests/ --cov=tfg_models --cov-report=term-missing --cov-report=xml
+          pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml
+        env:
+          PRELOAD_MODEL: "none"
+          DATA_PROVIDER: "local"
+          MODEL_HANDLER: "local"
 
       - name: Verify Inference Docker build
         run: |

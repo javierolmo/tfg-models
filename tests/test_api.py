@@ -13,6 +13,12 @@ class DummyModel:
         return [250000.0] * len(X)
 
 
+@pytest.fixture(autouse=True)
+def disable_model_preload_in_tests(monkeypatch):
+    """Prevents automatic network calls to Azure IMDS during test lifespan execution."""
+    monkeypatch.setenv("PRELOAD_MODEL", "none")
+
+
 @pytest.fixture
 def inference_client():
     _MODEL_CACHE.clear()
@@ -131,6 +137,13 @@ class TestInferenceApi:
         }
         response = inference_client.post("/predict", json=payload)
         assert response.status_code == 404
+
+    @patch("tfg_models.api.inference.load_and_cache_model")
+    def test_lifespan_warmup_execution(self, mock_load, monkeypatch):
+        monkeypatch.setenv("PRELOAD_MODEL", "lightgbm")
+        monkeypatch.setenv("PRELOAD_VERSION", "latest")
+        with TestClient(inference_app):
+            mock_load.assert_called_once_with("lightgbm", "latest")
 
 
 class TestTrainingApi:

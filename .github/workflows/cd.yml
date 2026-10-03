@@ -80,8 +80,8 @@ jobs:
             ${{ env.REPO }}-inference:${{ env.VERSION }}
             ${{ env.REPO }}-inference:latest
             ${{ env.REPO }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=inference
+          cache-to: type=gha,mode=max,scope=inference
 
       - name: Build and push Training Docker image
         uses: docker/build-push-action@v5
@@ -94,5 +94,5 @@ jobs:
             ${{ env.REPO }}-train:${{ env.TAG }}
             ${{ env.REPO }}-train:${{ env.VERSION }}
             ${{ env.REPO }}-train:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=train
+          cache-to: type=gha,mode=max,scope=train
