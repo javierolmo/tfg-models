@@ -10,8 +10,12 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 from tfg_models.config import settings
-from tfg_models.core.model_handler import AzureModelHandler, ModelHandler
-from tfg_models.data.preprocessing import clean_property_data, prepare_features_for_model
+from tfg_models.core.model_handler import ModelHandler, get_model_handler
+from tfg_models.data.preprocessing import (
+    clean_property_data,
+    prepare_features_for_model,
+    prepare_inference_features,
+)
 from tfg_models.data.providers import AzureDataProvider, DataProvider, LocalDataProvider
 
 logger = logging.getLogger(__name__)
@@ -52,9 +56,9 @@ class BaseModelTrainer(ABC):
 
     @property
     def model_handler(self) -> ModelHandler:
-        """Lazily initializes the model persistence handler (defaults to production AzureModelHandler)."""
+        """Lazily initializes the model persistence handler."""
         if self._model_handler is None:
-            self._model_handler = AzureModelHandler(self.model_name)
+            self._model_handler = get_model_handler(self.model_name)
         return self._model_handler
 
     def load_data(self) -> pd.DataFrame:
@@ -155,32 +159,16 @@ class BaseModelTrainer(ABC):
     ) -> float:
         """Loads persisted model and performs inference on a single property sample."""
         model, features = self.model_handler.load_model(version=version)
-
-        input_data = pd.DataFrame(
-            [
-                {
-                    "surface": surface,
-                    "rooms": rooms,
-                    "bathrooms": bathrooms,
-                    "elevator": elevator,
-                    "terrace": terrace,
-                    "garage": garage,
-                    "postal_code": str(postal_code),
-                }
-            ]
+        X_input = prepare_inference_features(
+            surface=surface,
+            rooms=rooms,
+            bathrooms=bathrooms,
+            postal_code=postal_code,
+            elevator=elevator,
+            terrace=terrace,
+            garage=garage,
+            features=features,
+            encoding=self.encoding,
         )
-
-        if self.encoding == "onehot":
-            for col in features:
-                if col not in input_data.columns:
-                    input_data[col] = False
-            target_pc_col = f"postal_code_{postal_code}"
-            if target_pc_col in input_data.columns:
-                input_data[target_pc_col] = True
-            X_input = input_data[features]
-        else:
-            input_data["postal_code"] = input_data["postal_code"].astype("category")
-            X_input = input_data[features]
-
         prediction = model.predict(X_input)[0]
         return float(prediction)

@@ -1,0 +1,28 @@
+# ==============================================================================
+# Minimal Inference Image for Azure Container Apps (Scale-to-Zero, Low Latency)
+# ==============================================================================
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
+
+# Install OpenMP runtime required by LightGBM
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package metadata and source files
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+# Install only minimal inference dependencies (no pyarrow / Data Lake dependencies)
+RUN pip install --no-cache-dir ".[inference]"
+
+EXPOSE 8000
+
+# Start FastAPI Inference API
+ENTRYPOINT ["uvicorn", "tfg_models.api.inference:app"]
+CMD ["--host", "0.0.0.0", "--port", "8000"]

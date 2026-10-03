@@ -1,10 +1,36 @@
 services:
-  # Service for model training
-  train:
+  # ============================================================================
+  # Inference HTTP API Service (FastAPI for Azure Container Apps / real-time)
+  # ============================================================================
+  inference-api:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: tfg-models:latest
+      dockerfile: Dockerfile.inference
+    image: tfg-models-inference:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_HANDLER=${MODEL_HANDLER:-local}
+      - LOCAL_DATALAKE_PATH=/app/local_datalake
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT:-tfgdatalake}
+      - AZURE_MODELS_CONTAINER=${AZURE_MODELS_CONTAINER:-datalake}
+      - PRELOAD_MODEL=${PRELOAD_MODEL:-lightgbm}
+      - PRELOAD_VERSION=${PRELOAD_VERSION:-latest}
+    volumes:
+      - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    command: ["--host", "0.0.0.0", "--port", "8000"]
+
+  # ============================================================================
+  # Training HTTP API Service (FastAPI for pipeline orchestration & evaluation)
+  # ============================================================================
+  training-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    image: tfg-models-train:latest
+    ports:
+      - "8001:8001"
     environment:
       - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT:-tfgdatalake}
       - AZURE_CONTAINER=${AZURE_CONTAINER:-gold}
@@ -13,34 +39,65 @@ services:
       - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
       - DATA_PROVIDER=${DATA_PROVIDER:-azure}
       - MODEL_HANDLER=${MODEL_HANDLER:-local}
+      - LOCAL_DATALAKE_PATH=/app/local_datalake
     volumes:
       - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    command: ["--host", "0.0.0.0", "--port", "8001"]
+
+  # ============================================================================
+  # CLI Service: On-demand Model Training
+  # ============================================================================
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    image: tfg-models-train:latest
+    environment:
+      - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT:-tfgdatalake}
+      - AZURE_CONTAINER=${AZURE_CONTAINER:-gold}
+      - PROPERTIES_PATH=${PROPERTIES_PATH:-properties_full}
+      - AZURE_STORAGE_ACCOUNT_KEY=${AZURE_STORAGE_ACCOUNT_KEY:-}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - DATA_PROVIDER=${DATA_PROVIDER:-azure}
+      - MODEL_HANDLER=${MODEL_HANDLER:-local}
+      - LOCAL_DATALAKE_PATH=/app/local_datalake
+    volumes:
+      - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    entrypoint: ["tfg-models"]
     command: ["train", "--model", "all"]
 
-  # Service for comparing model performance
+  # ============================================================================
+  # CLI Service: Compare Model Performance
+  # ============================================================================
   compare:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: tfg-models:latest
+      dockerfile: Dockerfile.train
+    image: tfg-models-train:latest
     environment:
       - MODEL_HANDLER=${MODEL_HANDLER:-local}
       - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - LOCAL_DATALAKE_PATH=/app/local_datalake
     volumes:
       - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    entrypoint: ["tfg-models"]
     command: ["compare"]
 
-  # Service for running property valuation inference
+  # ============================================================================
+  # CLI Service: Valuation Inference via CLI
+  # ============================================================================
   predict:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: tfg-models:latest
+      dockerfile: Dockerfile.inference
+    image: tfg-models-inference:latest
     environment:
       - MODEL_HANDLER=${MODEL_HANDLER:-local}
       - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - LOCAL_DATALAKE_PATH=/app/local_datalake
     volumes:
       - ${LOCAL_DATALAKE_PATH:-~/local_datalake}:/app/local_datalake
+    entrypoint: ["tfg-models"]
     command:
       - "predict"
       - "--model"

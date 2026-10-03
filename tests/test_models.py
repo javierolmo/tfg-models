@@ -3,13 +3,13 @@
 import pandas as pd
 import pytest
 
+from tfg_models.core.model_handler import LocalModelHandler
 from tfg_models.models import (
     MODEL_REGISTRY,
     LightGBMTrainer,
     LinearRegressionTrainer,
     get_model_trainer,
 )
-from tests.helpers.local_model_handler import LocalModelHandler
 
 
 def _create_train_dataset():

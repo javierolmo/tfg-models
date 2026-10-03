@@ -3,12 +3,16 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
-import pyarrow.dataset as ds
-from pyarrow.fs import AzureFileSystem
+
+try:
+    import pyarrow.dataset as ds
+    from pyarrow.fs import AzureFileSystem
+except ImportError:  # pragma: no cover
+    ds = None
+    AzureFileSystem = None
 
 from tfg_models.config import settings
 
@@ -23,19 +27,6 @@ class DataProvider(ABC):
         """Reads the full consolidated properties dataset (properties_full)."""
         pass
 
-    def read_properties_snapshot(self, date: Optional[datetime] = None) -> pd.DataFrame:
-        """
-        Reads property data. If date is provided and load_date is available,
-        filters by date. Otherwise returns the full dataset.
-        Maintained for backwards-compatibility.
-        """
-        df = self.read_properties_full()
-        if date and "load_date" in df.columns:
-            date_str = date.strftime("%Y-%m-%d")
-            logger.info("Filtering properties_full by load_date = '%s'", date_str)
-            return df[df["load_date"] == date_str]
-        return df
-
 
 class AzureDataProvider(DataProvider):
     """Data provider reading property data directly from Azure Data Lake Storage Gen2 (Parquet)."""
@@ -46,18 +37,26 @@ class AzureDataProvider(DataProvider):
         container: Optional[str] = None,
         table_path: Optional[str] = None,
         account_key: Optional[str] = None,
-        filesystem: Optional[AzureFileSystem] = None,
+        client_id: Optional[str] = None,
+        filesystem: Optional[Any] = None,
     ):
+        if ds is None or AzureFileSystem is None:
+            raise ImportError(
+                "pyarrow is required for AzureDataProvider. "
+                "Install training dependencies with: pip install 'tfg-models[train]'"
+            )
+
         self.storage_account = storage_account or settings.azure_storage_account
         self.container = container or settings.azure_container
         self.table_path = table_path or settings.properties_table_path
         self.account_key = account_key or settings.azure_storage_account_key
+        self.client_id = client_id or settings.azure_client_id
 
         # If account_key is missing but connection string is provided, attempt extraction
-        if not self.account_key and settings.azure_storage_connection_string:
+        if not self.account_key and settings.azure_connection_string:
             parts = dict(
                 item.split("=", 1)
-                for item in settings.azure_storage_connection_string.split(";")
+                for item in settings.azure_connection_string.split(";")
                 if "=" in item
             )
             self.account_key = parts.get("AccountKey")
@@ -72,7 +71,10 @@ class AzureDataProvider(DataProvider):
                 account_key=self.account_key,
             )
         else:
-            self.fs = AzureFileSystem(account_name=self.storage_account)
+            kwargs = {}
+            if self.client_id:
+                kwargs["client_id"] = self.client_id
+            self.fs = AzureFileSystem(account_name=self.storage_account, **kwargs)
 
         self.full_path = f"{self.container}/{self.table_path}".strip("/")
         logger.info(
@@ -109,6 +111,12 @@ class LocalDataProvider(DataProvider):
 
     def read_properties_full(self) -> pd.DataFrame:
         """Reads properties_full from local filesystem using native PyArrow."""
+        if ds is None:
+            raise ImportError(
+                "pyarrow is required for LocalDataProvider. "
+                "Install training dependencies with: pip install 'tfg-models[train]'"
+            )
+
         gold_path = os.path.join(self.base_path, "gold", self.table_path)
         direct_path = os.path.join(self.base_path, self.table_path)
 

@@ -1,4 +1,4 @@
-"""Unit tests for model handlers (LocalModelHandler in test helpers and AzureModelHandler in core)."""
+"""Unit tests for model handlers (LocalModelHandler and AzureModelHandler)."""
 
 import io
 import json
@@ -6,8 +6,7 @@ import joblib
 import pytest
 from unittest.mock import MagicMock, patch
 
-from tfg_models.core.model_handler import AzureModelHandler
-from tests.helpers.local_model_handler import LocalModelHandler
+from tfg_models.core.model_handler import AzureModelHandler, LocalModelHandler
 
 
 class DummyModel:
@@ -71,11 +70,49 @@ class TestLocalModelHandler:
 
 
 class TestAzureModelHandler:
-    def test_init_without_connection_string_raises_on_access(self):
+    @patch("tfg_models.core.model_handler.settings")
+    @patch("tfg_models.core.model_handler.DefaultAzureCredential")
+    @patch("tfg_models.core.model_handler.BlobServiceClient")
+    def test_init_with_default_azure_credential(self, mock_blob_service_cls, mock_credential_cls, mock_settings):
+        mock_settings.azure_storage_account = "testacc"
+        mock_settings.azure_connection_string = None
+        mock_settings.azure_storage_account_key = None
+        mock_settings.azure_models_container = "models"
+        mock_settings.azure_client_id = "custom-uami-id"
+
+        mock_service = MagicMock()
+        mock_container = MagicMock()
+        mock_blob_service_cls.return_value = mock_service
+        mock_service.get_container_client.return_value = mock_container
+
         handler = AzureModelHandler("test_azure")
-        handler.connection_string = None
-        with pytest.raises(ValueError, match="Azure Storage connection string is required"):
-            handler._get_container_client()
+        container = handler._get_container_client()
+        mock_credential_cls.assert_called_once_with(managed_identity_client_id="custom-uami-id")
+        mock_blob_service_cls.assert_called_once_with(
+            account_url="https://testacc.blob.core.windows.net",
+            credential=mock_credential_cls.return_value,
+        )
+
+    @patch("tfg_models.core.model_handler.settings")
+    @patch("tfg_models.core.model_handler.BlobServiceClient")
+    def test_init_with_account_key(self, mock_blob_service_cls, mock_settings):
+        mock_settings.azure_storage_account = "testacc"
+        mock_settings.azure_connection_string = None
+        mock_settings.azure_storage_account_key = "testkey123"
+        mock_settings.azure_models_container = "models"
+        mock_settings.azure_client_id = None
+
+        mock_service = MagicMock()
+        mock_container = MagicMock()
+        mock_blob_service_cls.return_value = mock_service
+        mock_service.get_container_client.return_value = mock_container
+
+        handler = AzureModelHandler("test_azure")
+        container = handler._get_container_client()
+        mock_blob_service_cls.assert_called_once_with(
+            account_url="https://testacc.blob.core.windows.net",
+            credential="testkey123",
+        )
 
     @patch("tfg_models.core.model_handler.BlobServiceClient")
     def test_save_model(self, mock_blob_service_cls):

@@ -1,7 +1,6 @@
 """Unit tests for data providers."""
 
 import os
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -57,19 +56,32 @@ def test_azure_data_provider_read():
         mock_ds.assert_called_once_with("gold/properties_full", filesystem=mock_fs, format="parquet")
 
 
-def test_read_properties_snapshot_with_date():
-    sample_df = pd.DataFrame(
-        {
-            "property_id": [1, 2],
-            "load_date": ["2026-09-30", "2026-09-29"],
-            "price": [200000.0, 180000.0],
-        }
-    )
+def test_azure_data_provider_connection_string_extraction():
+    with patch("tfg_models.data.providers.settings") as mock_settings:
+        mock_settings.azure_storage_account = None
+        mock_settings.azure_container = "gold"
+        mock_settings.properties_table_path = "properties_full"
+        mock_settings.azure_storage_account_key = None
+        mock_settings.azure_connection_string = (
+            "DefaultEndpointsProtocol=https;AccountName=extracted_acc;AccountKey=extracted_key;EndpointSuffix=core.windows.net"
+        )
+        with patch("tfg_models.data.providers.AzureFileSystem") as mock_afs:
+            provider = AzureDataProvider()
+            assert provider.storage_account == "extracted_acc"
+            assert provider.account_key == "extracted_key"
+            mock_afs.assert_called_once_with(account_name="extracted_acc", account_key="extracted_key")
 
-    provider = LocalDataProvider(base_path="/tmp")
-    provider.read_properties_full = MagicMock(return_value=sample_df)
 
-    res = provider.read_properties_snapshot(date=datetime(2026, 9, 30))
-    assert len(res) == 1
-    assert res.iloc[0]["property_id"] == 1
-    assert res.iloc[0]["load_date"] == "2026-09-30"
+def test_azure_data_provider_managed_identity():
+    with patch("tfg_models.data.providers.settings") as mock_settings:
+        mock_settings.azure_storage_account = "managed_acc"
+        mock_settings.azure_container = "gold"
+        mock_settings.properties_table_path = "properties_full"
+        mock_settings.azure_storage_account_key = None
+        mock_settings.azure_connection_string = None
+        mock_settings.azure_client_id = "test-client-id"
+        with patch("tfg_models.data.providers.AzureFileSystem") as mock_afs:
+            provider = AzureDataProvider()
+            assert provider.storage_account == "managed_acc"
+            assert provider.client_id == "test-client-id"
+            mock_afs.assert_called_once_with(account_name="managed_acc", client_id="test-client-id")

@@ -64,20 +64,35 @@ jobs:
       - name: Determine Docker Hub repository
         id: docker_meta
         run: |
-          # Use DOCKERHUB_USERNAME secret if available, otherwise default to javierolmo
           REPO="${{ secrets.DOCKERHUB_USERNAME || 'javierolmo' }}/tfg-models"
           echo "REPO=$REPO" >> $GITHUB_ENV
-          echo "Target repository: $REPO"
+          echo "Target base repository: $REPO"
 
-      - name: Build and push Docker image
+      - name: Build and push Inference Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile.inference
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.REPO }}:${{ env.TAG }}
-            ${{ env.REPO }}:${{ env.VERSION }}
+            ${{ env.REPO }}-inference:${{ env.TAG }}
+            ${{ env.REPO }}-inference:${{ env.VERSION }}
+            ${{ env.REPO }}-inference:latest
             ${{ env.REPO }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=inference
+          cache-to: type=gha,mode=max,scope=inference
+
+      - name: Build and push Training Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.train
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REPO }}-train:${{ env.TAG }}
+            ${{ env.REPO }}-train:${{ env.VERSION }}
+            ${{ env.REPO }}-train:latest
+          cache-from: type=gha,scope=train
+          cache-to: type=gha,mode=max,scope=train

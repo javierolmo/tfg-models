@@ -4,8 +4,8 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 
+from tfg_models.core.model_handler import LocalModelHandler
 from tfg_models.core.trainer import BaseModelTrainer
-from tests.helpers.local_model_handler import LocalModelHandler
 
 
 class DummyModel:

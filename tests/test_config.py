@@ -7,13 +7,14 @@ from tfg_models.config import Settings
 
 
 def test_default_settings():
-    settings = Settings()
-    assert settings.azure_storage_account == "tfgdatalake"
-    assert settings.azure_container == "gold"
-    assert settings.properties_table_path == "properties_full"
-    assert settings.azure_models_container in ("datalake", "models")
-    assert settings.default_data_provider == "azure"
-    assert settings.default_model_handler == "azure"
+    with patch.dict(os.environ, {}, clear=True):
+        settings = Settings()
+        assert settings.azure_storage_account == "tfgdatalake"
+        assert settings.azure_container == "gold"
+        assert settings.properties_table_path == "properties_full"
+        assert settings.azure_models_container in ("datalake", "models")
+        assert settings.default_data_provider == "azure"
+        assert settings.default_model_handler == "azure"
 
 
 def test_settings_override_via_env():
