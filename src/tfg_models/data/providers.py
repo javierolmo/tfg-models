@@ -38,7 +38,7 @@ class DataProvider(ABC):
         if date and "load_date" in df.columns:
             date_str = date.strftime("%Y-%m-%d")
             logger.info("Filtering properties_full by load_date = '%s'", date_str)
-            return df[df["load_date"] == date_str]
+            return df[df["load_date"].astype(str) == date_str]
         return df
 
 

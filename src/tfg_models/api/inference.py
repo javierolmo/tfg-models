@@ -111,6 +111,9 @@ def predict(request: PredictRequest) -> PredictResponse:
     """Performs real-time property valuation."""
     model, features, encoding = load_and_cache_model(request.model, request.version)
 
+    # Standardize postal code to 5-digit string (e.g. '8001' or '08001' -> '08001')
+    standardized_pc = str(request.postal_code).split(".")[0].strip().zfill(5)
+
     try:
         input_data = pd.DataFrame(
             [
@@ -118,10 +121,10 @@ def predict(request: PredictRequest) -> PredictResponse:
                     "surface": request.surface,
                     "rooms": request.rooms,
                     "bathrooms": request.bathrooms,
-                    "elevator": request.elevator,
-                    "terrace": request.terrace,
-                    "garage": request.garage,
-                    "postal_code": str(request.postal_code),
+                    "elevator": int(bool(request.elevator)),
+                    "terrace": int(bool(request.terrace)),
+                    "garage": int(bool(request.garage)),
+                    "postal_code": standardized_pc,
                 }
             ]
         )
@@ -130,7 +133,7 @@ def predict(request: PredictRequest) -> PredictResponse:
             for col in features:
                 if col not in input_data.columns:
                     input_data[col] = False
-            target_pc_col = f"postal_code_{request.postal_code}"
+            target_pc_col = f"postal_code_{standardized_pc}"
             if target_pc_col in input_data.columns:
                 input_data[target_pc_col] = True
             X_input = input_data[features]

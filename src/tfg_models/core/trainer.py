@@ -156,16 +156,19 @@ class BaseModelTrainer(ABC):
         """Loads persisted model and performs inference on a single property sample."""
         model, features = self.model_handler.load_model(version=version)
 
+        # Standardize 5-digit postal code (e.g. 8001 -> '08001', '36211' -> '36211')
+        standardized_pc = str(postal_code).split(".")[0].strip().zfill(5)
+
         input_data = pd.DataFrame(
             [
                 {
                     "surface": surface,
                     "rooms": rooms,
                     "bathrooms": bathrooms,
-                    "elevator": elevator,
-                    "terrace": terrace,
-                    "garage": garage,
-                    "postal_code": str(postal_code),
+                    "elevator": int(bool(elevator)),
+                    "terrace": int(bool(terrace)),
+                    "garage": int(bool(garage)),
+                    "postal_code": standardized_pc,
                 }
             ]
         )
@@ -174,7 +177,7 @@ class BaseModelTrainer(ABC):
             for col in features:
                 if col not in input_data.columns:
                     input_data[col] = False
-            target_pc_col = f"postal_code_{postal_code}"
+            target_pc_col = f"postal_code_{standardized_pc}"
             if target_pc_col in input_data.columns:
                 input_data[target_pc_col] = True
             X_input = input_data[features]

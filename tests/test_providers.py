@@ -1,7 +1,7 @@
 """Unit tests for data providers."""
 
 import os
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -57,7 +57,7 @@ def test_azure_data_provider_read():
         mock_ds.assert_called_once_with("gold/properties_full", filesystem=mock_fs, format="parquet")
 
 
-def test_read_properties_snapshot_with_date():
+def test_read_properties_snapshot_with_string_date():
     sample_df = pd.DataFrame(
         {
             "property_id": [1, 2],
@@ -73,3 +73,21 @@ def test_read_properties_snapshot_with_date():
     assert len(res) == 1
     assert res.iloc[0]["property_id"] == 1
     assert res.iloc[0]["load_date"] == "2026-09-30"
+
+
+def test_read_properties_snapshot_with_date_object():
+    """Tests filtering when load_date contains DateType objects (from PyArrow/Spark)."""
+    sample_df = pd.DataFrame(
+        {
+            "property_id": [1, 2],
+            "load_date": [date(2026, 9, 30), date(2026, 9, 29)],
+            "price": [200000.0, 180000.0],
+        }
+    )
+
+    provider = LocalDataProvider(base_path="/tmp")
+    provider.read_properties_full = MagicMock(return_value=sample_df)
+
+    res = provider.read_properties_snapshot(date=datetime(2026, 9, 30))
+    assert len(res) == 1
+    assert res.iloc[0]["property_id"] == 1

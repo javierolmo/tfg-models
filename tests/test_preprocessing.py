@@ -1,5 +1,6 @@
 """Unit tests for data preprocessing module."""
 
+import numpy as np
 import pandas as pd
 
 from tfg_models.data.preprocessing import clean_property_data, prepare_features_for_model
@@ -36,6 +37,41 @@ def test_clean_property_data():
     assert row2["elevator"] == 1
     assert row2["terrace"] == 0
     assert row2["garage"] == 1
+
+
+def test_clean_property_data_with_gold_parquet_schema():
+    """Validates behavior against newly updated Gold PropertiesFull types (Integer postal_code, uppercase types)."""
+    gold_df = pd.DataFrame(
+        {
+            "id": ["1", "2", "3", "4"],
+            # Uppercase standardized types from wallascala PropertyTypeStandardizer & OperationStandardizer
+            "type": ["FLAT", "FLAT", "HOUSE", "FLAT"],
+            "operation": ["SELL", "SELL", "SELL", "RENT"],
+            "surface": [70, 110, 200, 50],
+            "rooms": [2, 4, 5, 1],
+            "bathrooms": [1, 2, 3, 1],
+            "price": [180000, 350000, 500000, 750],
+            # Spark IntegerType postal_code with leading zero dropped (8001 for Barcelona 08001)
+            "postal_code": [8001.0, 36211.0, 28001.0, np.nan],
+            # Nullable booleans
+            "elevator": pd.Series([True, None, False, True], dtype="boolean"),
+            "terrace": pd.Series([None, True, False, False], dtype="boolean"),
+            "garage": pd.Series([False, True, None, False], dtype="boolean"),
+        }
+    )
+
+    cleaned = clean_property_data(gold_df)
+
+    # Only rows 1 and 2 are valid FLAT + SELL with valid postal code
+    assert len(cleaned) == 2
+
+    # Verify postal codes were padded to 5-digit strings
+    assert list(cleaned["postal_code"]) == ["08001", "36211"]
+
+    # Verify booleans correctly converted to ints
+    assert list(cleaned["elevator"]) == [1, 0]
+    assert list(cleaned["terrace"]) == [0, 1]
+    assert list(cleaned["garage"]) == [0, 1]
 
 
 def test_prepare_features_for_model_onehot():
