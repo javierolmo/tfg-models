@@ -1,6 +1,6 @@
 """TFG Real Estate Valuation Models Package."""
 
-__version__ = "0.0.2"
+__version__ = "1.0.0"
 
 from tfg_models.config import settings
 from tfg_models.core.model_handler import (

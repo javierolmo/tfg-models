@@ -3,7 +3,7 @@
 Machine Learning pipelines and real-time inference services for real estate appraisal and valuation based on Azure Data Lake Storage Gen2 (`gold.properties_full`).
 
 ## Version
-**0.0.2** (See [CHANGELOG.md](file:///Users/javierolmo/IdeaProjects/tfg-models/CHANGELOG.md) for release history)
+**1.0.0** (See [CHANGELOG.md](file:///Users/javierolmo/IdeaProjects/tfg-models/CHANGELOG.md) for release history)
 
 ---
 

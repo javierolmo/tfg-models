@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tfg-models"
-version = "0.0.2"
+version = "1.0.0"
 description = "Machine Learning pipelines and models for real estate valuation"
 readme = "README.md"
 requires-python = ">=3.11"
