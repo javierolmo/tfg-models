@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-10-03
+- Incorporación de modelo de Red Neuronal Tabular en PyTorch con Entity Embeddings y optimización de dependencias CPU.
+
 ## [1.0.0] - 2026-10-03
 - Separación en imágenes mínimas para inferencia y entrenamiento con APIs FastAPI dedicadas.
 - Autenticación sin secretos con Azure Managed Identity y adaptación al estándar de la capa Gold.

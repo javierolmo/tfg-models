@@ -3,7 +3,6 @@
 import logging
 from typing import Any, List, Optional, Tuple
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -34,13 +33,10 @@ def clean_property_data(properties_df: pd.DataFrame) -> pd.DataFrame:
     available_cols = [c for c in target_columns if c in df.columns]
     df = df[available_cols]
 
-    # Impute boolean flags with 0 if null/False (safe against nullable boolean dtypes)
+    # Impute boolean flags with 0 if null/False (safe against nullable boolean and object dtypes)
     for bool_col in ["elevator", "terrace", "garage"]:
         if bool_col in df.columns:
-            if df[bool_col].dtype.name == "boolean":
-                df[bool_col] = df[bool_col].fillna(False).astype(int)
-            else:
-                df[bool_col] = np.where(df[bool_col] == True, 1, 0)
+            df[bool_col] = (df[bool_col] == True).fillna(False).astype(int)
 
     # Standardize postal codes to 5-digit zero-padded strings if present
     # Handled formats: integer (8001 -> '08001'), float (36211.0 -> '36211'), string ('36211' / '08001')

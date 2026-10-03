@@ -22,8 +22,8 @@ FROM base AS inference
 
 ENV PORT=8000
 
-# Install only inference dependencies (fastapi, uvicorn, pydantic - excludes pyarrow)
-RUN pip install --no-cache-dir ".[inference]"
+# Install only inference dependencies (CPU-only PyTorch, no pyarrow)
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu ".[inference]"
 
 EXPOSE 8000
 
@@ -38,8 +38,8 @@ FROM base AS train
 ENV LOCAL_DATALAKE_PATH=/app/local_datalake \
     PORT=8001
 
-# Install full dependencies including pyarrow
-RUN pip install --no-cache-dir ".[train]" \
+# Install full dependencies including pyarrow and CPU-only PyTorch
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu ".[train]" \
     && mkdir -p /app/local_datalake
 
 EXPOSE 8001

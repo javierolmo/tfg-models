@@ -6,7 +6,7 @@ try:
 except ImportError:
     pass
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 from tfg_models.config import settings
 from tfg_models.core.model_handler import (

@@ -4,7 +4,7 @@ import tfg_models
 
 
 def test_version():
-    assert tfg_models.__version__ == "1.0.0"
+    assert tfg_models.__version__ == "1.1.0"
 
 
 def test_registry():
