@@ -61,6 +61,34 @@ def test_cmd_predict(mock_get_trainer, capsys):
     assert "ESTIMATED PRICE: 285,000.50 €" in out
 
 
+@patch("tfg_models.cli.get_model_trainer")
+def test_cmd_predict_neural_network(mock_get_trainer, capsys):
+    mock_trainer = MagicMock()
+    mock_trainer.predict_sample.return_value = 310000.00
+    mock_get_trainer.return_value = mock_trainer
+
+    main(
+        [
+            "predict",
+            "--model",
+            "neural_network",
+            "--surface",
+            "100",
+            "--rooms",
+            "4",
+            "--bathrooms",
+            "2",
+            "--postal-code",
+            "28001",
+            "--garage",
+        ]
+    )
+
+    out, _ = capsys.readouterr()
+    assert "PROPERTY VALUATION RESULT (NEURAL_NETWORK)" in out
+    assert "ESTIMATED PRICE: 310,000.00 €" in out
+
+
 @patch("tfg_models.cli.get_model_handler")
 def test_cmd_compare(mock_get_handler, capsys):
     mock_handler = MagicMock()

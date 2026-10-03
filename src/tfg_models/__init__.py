@@ -1,6 +1,12 @@
 """TFG Real Estate Valuation Models Package."""
 
-__version__ = "1.0.0"
+# Pre-initialize PyTorch runtime before C-extensions/OpenMP runtimes
+try:
+    import torch  # noqa: F401
+except ImportError:
+    pass
+
+__version__ = "1.1.0"
 
 from tfg_models.config import settings
 from tfg_models.core.model_handler import (
@@ -18,6 +24,7 @@ from tfg_models.data.providers import (
 from tfg_models.models import (
     LightGBMTrainer,
     LinearRegressionTrainer,
+    NeuralNetworkTrainer,
     get_model_trainer,
 )
 
@@ -34,5 +41,6 @@ __all__ = [
     "LocalDataProvider",
     "LinearRegressionTrainer",
     "LightGBMTrainer",
+    "NeuralNetworkTrainer",
     "get_model_trainer",
 ]

@@ -3,7 +3,6 @@
 import io
 import json
 import logging
-import os
 import subprocess
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone

@@ -19,8 +19,8 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install full training dependencies (including PyArrow for Azure Data Lake)
-RUN pip install --no-cache-dir ".[train]" \
+# Install full training dependencies using CPU-only PyTorch
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu ".[train]" \
     && mkdir -p /app/local_datalake
 
 EXPOSE 8001

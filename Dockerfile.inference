@@ -18,8 +18,8 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install only minimal inference dependencies (no pyarrow / Data Lake dependencies)
-RUN pip install --no-cache-dir ".[inference]"
+# Install only minimal inference dependencies (CPU-only PyTorch, no pyarrow)
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu ".[inference]"
 
 EXPOSE 8000
 

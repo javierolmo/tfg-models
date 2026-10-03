@@ -3,7 +3,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
