@@ -35,8 +35,6 @@ jobs:
           pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml
         env:
           PRELOAD_MODEL: "none"
-          DATA_PROVIDER: "local"
-          MODEL_HANDLER: "local"
 
       - name: Verify Inference Docker build
         run: |
