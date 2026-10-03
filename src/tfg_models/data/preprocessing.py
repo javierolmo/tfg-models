@@ -1,7 +1,7 @@
 """Common data preprocessing and cleaning functions for property datasets."""
 
 import logging
-from typing import Tuple
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ def clean_property_data(properties_df: pd.DataFrame) -> pd.DataFrame:
     - Filters strictly by Gold layer contract: type 'FLAT' and operation 'SELL'.
     - Imputes boolean flags (elevator, terrace, garage) with 0 if NULL/False.
     - Standardizes postal codes to 5-digit zero-padded strings (e.g. 8001 -> '08001', 36211.0 -> '36211').
-    - Drops records with nulls in critical predictors (surface, rooms, bathrooms, postal_code, price).
+    - Drops records with nulls or non-numeric values in critical predictors.
     - Ensures positive physical measurements and price.
     - Standardizes data types.
     """
@@ -50,17 +50,14 @@ def clean_property_data(properties_df: pd.DataFrame) -> pd.DataFrame:
         df["postal_code"] = None
         df.loc[valid_pc, "postal_code"] = num_pc[valid_pc].astype(int).astype(str).str.zfill(5)
 
-    # Drop nulls in critical predictors and target
-    critical_cols = [c for c in ["surface", "rooms", "bathrooms", "price", "postal_code"] if c in df.columns]
-    df = df.dropna(subset=critical_cols)
-
-    # Ensure numeric types for measurements and target
+    # Coerce numeric predictors and price
     for num_col in ["surface", "rooms", "bathrooms", "price"]:
         if num_col in df.columns:
             df[num_col] = pd.to_numeric(df[num_col], errors="coerce")
 
-    # Drop any rows where coercion created NaNs
-    df = df.dropna(subset=[c for c in ["surface", "rooms", "bathrooms", "price"] if c in df.columns])
+    # Drop nulls in critical predictors and target in a single pass
+    critical_cols = [c for c in ["surface", "rooms", "bathrooms", "price", "postal_code"] if c in df.columns]
+    df = df.dropna(subset=critical_cols)
 
     # Filter positive physical measurements and price
     positive_mask = (
@@ -114,3 +111,51 @@ def prepare_features_for_model(
         target = df_copy["price"]
 
     return features, target
+
+
+def prepare_inference_features(
+    surface: float,
+    rooms: int,
+    bathrooms: int,
+    postal_code: Any,
+    elevator: bool = False,
+    terrace: bool = False,
+    garage: bool = False,
+    features: Optional[List[str]] = None,
+    encoding: str = "categorical",
+) -> pd.DataFrame:
+    """
+    Constructs and formats a single-sample feature DataFrame matching the model's training expectations.
+    """
+    # Standardize 5-digit postal code (e.g. 8001 -> '08001', '36211' -> '36211')
+    standardized_pc = str(postal_code).split(".")[0].strip().zfill(5)
+
+    input_data = pd.DataFrame(
+        [
+            {
+                "surface": float(surface),
+                "rooms": int(rooms),
+                "bathrooms": int(bathrooms),
+                "elevator": int(bool(elevator)),
+                "terrace": int(bool(terrace)),
+                "garage": int(bool(garage)),
+                "postal_code": standardized_pc,
+            }
+        ]
+    )
+
+    if encoding == "onehot":
+        if features:
+            for col in features:
+                if col not in input_data.columns:
+                    input_data[col] = False
+            target_pc_col = f"postal_code_{standardized_pc}"
+            if target_pc_col in input_data.columns:
+                input_data[target_pc_col] = True
+            return input_data[features]
+        return input_data
+    else:
+        input_data["postal_code"] = input_data["postal_code"].astype("category")
+        if features:
+            return input_data[features]
+        return input_data

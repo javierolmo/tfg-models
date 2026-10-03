@@ -3,7 +3,6 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from datetime import datetime
 from typing import Any, Optional
 
 import pandas as pd
@@ -27,19 +26,6 @@ class DataProvider(ABC):
     def read_properties_full(self) -> pd.DataFrame:
         """Reads the full consolidated properties dataset (properties_full)."""
         pass
-
-    def read_properties_snapshot(self, date: Optional[datetime] = None) -> pd.DataFrame:
-        """
-        Reads property data. If date is provided and load_date is available,
-        filters by date. Otherwise returns the full dataset.
-        Maintained for backwards-compatibility.
-        """
-        df = self.read_properties_full()
-        if date and "load_date" in df.columns:
-            date_str = date.strftime("%Y-%m-%d")
-            logger.info("Filtering properties_full by load_date = '%s'", date_str)
-            return df[df["load_date"].astype(str) == date_str]
-        return df
 
 
 class AzureDataProvider(DataProvider):
@@ -65,10 +51,10 @@ class AzureDataProvider(DataProvider):
         self.account_key = account_key or settings.azure_storage_account_key
 
         # If account_key is missing but connection string is provided, attempt extraction
-        if not self.account_key and settings.azure_storage_connection_string:
+        if not self.account_key and settings.azure_connection_string:
             parts = dict(
                 item.split("=", 1)
-                for item in settings.azure_storage_connection_string.split(";")
+                for item in settings.azure_connection_string.split(";")
                 if "=" in item
             )
             self.account_key = parts.get("AccountKey")

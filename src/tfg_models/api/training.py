@@ -39,15 +39,14 @@ def _execute_training(
             trainer = get_model_trainer(model_name)
             _, _, report, version_id = trainer.run(version=version)
 
-            metrics = report.get("metrics") or report
             results.append(
                 ModelTrainResult(
                     model=model_name,
                     version=version_id,
                     metrics={
-                        "mae": metrics.get("mae", 0.0),
-                        "rmse": metrics.get("rmse", 0.0),
-                        "r2_score": metrics.get("r2_score", 0.0),
+                        "mae": report.get("mae", 0.0),
+                        "rmse": report.get("rmse", 0.0),
+                        "r2_score": report.get("r2_score", 0.0),
                     },
                 )
             )
@@ -140,14 +139,13 @@ def compare_models() -> CompareResponse:
         try:
             handler = get_model_handler(model_name)
             report = handler.get_report(version="latest")
-            metrics = report.get("metrics") or report
             items.append(
                 ModelComparisonItem(
                     model=model_name,
                     version=str(report.get("version", "latest")),
-                    mae=metrics.get("mae"),
-                    rmse=metrics.get("rmse"),
-                    r2_score=metrics.get("r2_score"),
+                    mae=report.get("mae"),
+                    rmse=report.get("rmse"),
+                    r2_score=report.get("r2_score"),
                     status="available",
                 )
             )

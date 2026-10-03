@@ -2,11 +2,9 @@
 
 import argparse
 import logging
-import sys
 from typing import Optional
 
-from tfg_models.config import settings
-from tfg_models.core.model_handler import ModelHandler, get_model_handler
+from tfg_models.core.model_handler import get_model_handler
 from tfg_models.models import MODEL_REGISTRY, get_model_trainer
 
 logging.basicConfig(
@@ -14,10 +12,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-
-def _get_model_handler(model_name: str) -> ModelHandler:
-    return get_model_handler(model_name)
 
 
 def cmd_train(args: argparse.Namespace) -> None:
@@ -33,11 +27,10 @@ def cmd_train(args: argparse.Namespace) -> None:
         trainer = get_model_trainer(model_name)
         _, _, report, version_id = trainer.run(version=args.version)
 
-        metrics = report.get("metrics") or report
         print(f"\nSuccessfully trained {model_name} (version: {version_id})")
-        print(f"  MAE:  {metrics.get('mae', 0.0):,.2f} €")
-        print(f"  RMSE: {metrics.get('rmse', 0.0):,.2f} €")
-        print(f"  R²:   {metrics.get('r2_score', 0.0):.4f}")
+        print(f"  MAE:  {report.get('mae', 0.0):,.2f} €")
+        print(f"  RMSE: {report.get('rmse', 0.0):,.2f} €")
+        print(f"  R²:   {report.get('r2_score', 0.0):.4f}")
 
 
 def cmd_predict(args: argparse.Namespace) -> None:
@@ -80,17 +73,16 @@ def cmd_compare(args: argparse.Namespace) -> None:
 
     for model_name in MODEL_REGISTRY:
         try:
-            handler = _get_model_handler(model_name)
+            handler = get_model_handler(model_name)
             report = handler.get_report(version="latest")
-            metrics = report.get("metrics") or report
-            mae = metrics.get("mae", 0.0)
-            rmse = metrics.get("rmse", 0.0)
-            r2 = metrics.get("r2_score", 0.0)
+            mae = report.get("mae", 0.0)
+            rmse = report.get("rmse", 0.0)
+            r2 = report.get("r2_score", 0.0)
             version = report.get("version", "latest")
             print(
                 f"{model_name:<20} | {mae:<12,.2f} | {rmse:<12,.2f} | {r2:<8.4f} | {version:<15}"
             )
-        except Exception as e:
+        except Exception:
             print(f"{model_name:<20} | {'(no trained model found)':<45}")
 
     print("=" * 70 + "\n")
@@ -99,7 +91,7 @@ def cmd_compare(args: argparse.Namespace) -> None:
 def cmd_versions(args: argparse.Namespace) -> None:
     """Handles the 'versions' subcommand."""
     try:
-        handler = _get_model_handler(args.model)
+        handler = get_model_handler(args.model)
         versions = handler.list_versions()
     except Exception as e:
         print(f"Error accessing storage: {e}")

@@ -1,4 +1,4 @@
-"""Unit tests for model handlers (LocalModelHandler in test helpers and AzureModelHandler in core)."""
+"""Unit tests for model handlers (LocalModelHandler and AzureModelHandler)."""
 
 import io
 import json
@@ -6,8 +6,7 @@ import joblib
 import pytest
 from unittest.mock import MagicMock, patch
 
-from tfg_models.core.model_handler import AzureModelHandler
-from tests.helpers.local_model_handler import LocalModelHandler
+from tfg_models.core.model_handler import AzureModelHandler, LocalModelHandler
 
 
 class DummyModel:

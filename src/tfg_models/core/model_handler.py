@@ -35,6 +35,13 @@ class ModelHandler(ABC):
     def __init__(self, model_name: str):
         self.model_name = model_name
 
+    def _prepare_metadata(self, report: dict, version: str) -> dict:
+        metadata = dict(report)
+        metadata["version"] = version
+        metadata["saved_at"] = datetime.now(timezone.utc).isoformat()
+        metadata["git_commit"] = _get_git_commit_hash()
+        return metadata
+
     @abstractmethod
     def save_model(
         self,
@@ -99,13 +106,6 @@ class AzureModelHandler(ModelHandler):
         blob_client = container_client.get_blob_client(remote_path)
         return blob_client.download_blob().readall()
 
-    def _prepare_metadata(self, report: dict, version: str) -> dict:
-        metadata = dict(report)
-        metadata["version"] = version
-        metadata["saved_at"] = datetime.now(timezone.utc).isoformat()
-        metadata["git_commit"] = _get_git_commit_hash()
-        return metadata
-
     def save_model(
         self,
         model: Any,
@@ -129,7 +129,6 @@ class AzureModelHandler(ModelHandler):
         prefixes = [
             f"models/{self.model_name}/{version_id}",
             f"models/{self.model_name}/latest",
-            f"models/{self.model_name}",  # Backward-compatible root
         ]
 
         logger.info("Saving Azure model '%s' (version: %s)", self.model_name, version_id)
@@ -143,29 +142,15 @@ class AzureModelHandler(ModelHandler):
 
     def load_model(self, version: str = "latest") -> Tuple[Any, Any]:
         logger.info("Loading model from Azure for '%s' (version: %s)", self.model_name, version)
-        try:
-            model_data = self._download_bytes(f"models/{self.model_name}/{version}/model.pkl")
-            features_data = self._download_bytes(f"models/{self.model_name}/{version}/features.pkl")
-        except Exception:
-            if version == "latest":
-                # Fallback to direct path
-                model_data = self._download_bytes(f"models/{self.model_name}/model.pkl")
-                features_data = self._download_bytes(f"models/{self.model_name}/features.pkl")
-            else:
-                raise
+        model_data = self._download_bytes(f"models/{self.model_name}/{version}/model.pkl")
+        features_data = self._download_bytes(f"models/{self.model_name}/{version}/features.pkl")
 
         model = joblib.load(io.BytesIO(model_data))
         features = joblib.load(io.BytesIO(features_data))
         return model, features
 
     def get_report(self, version: str = "latest") -> dict:
-        try:
-            report_data = self._download_bytes(f"models/{self.model_name}/{version}/report.json")
-        except Exception:
-            if version == "latest":
-                report_data = self._download_bytes(f"models/{self.model_name}/report.json")
-            else:
-                raise
+        report_data = self._download_bytes(f"models/{self.model_name}/{version}/report.json")
         return json.loads(report_data.decode("utf-8"))
 
     def list_versions(self) -> List[str]:
@@ -188,13 +173,6 @@ class LocalModelHandler(ModelHandler):
         self.base_path = Path(base_path or settings.local_datalake_path)
         self.models_dir = self.base_path / "models" / self.model_name
 
-    def _prepare_metadata(self, report: dict, version: str) -> dict:
-        metadata = dict(report)
-        metadata["version"] = version
-        metadata["saved_at"] = datetime.now(timezone.utc).isoformat()
-        metadata["git_commit"] = _get_git_commit_hash()
-        return metadata
-
     def save_model(
         self,
         model: Any,
@@ -208,7 +186,6 @@ class LocalModelHandler(ModelHandler):
         target_dirs = [
             self.models_dir / version_id,
             self.models_dir / "latest",
-            self.models_dir,
         ]
 
         logger.info("Saving local model '%s' (version: %s)", self.model_name, version_id)
@@ -224,22 +201,19 @@ class LocalModelHandler(ModelHandler):
 
     def load_model(self, version: str = "latest") -> Tuple[Any, Any]:
         target_dir = self.models_dir / version
-        if not (target_dir / "model.pkl").exists() and version == "latest":
-            target_dir = self.models_dir
+        model_file = target_dir / "model.pkl"
+        features_file = target_dir / "features.pkl"
 
-        if not (target_dir / "model.pkl").exists():
-            raise FileNotFoundError(f"Model not found at: {target_dir / 'model.pkl'}")
+        if not model_file.exists():
+            raise FileNotFoundError(f"Model not found at: {model_file}")
 
         logger.info("Loading local model from %s", target_dir)
-        model = joblib.load(target_dir / "model.pkl")
-        features = joblib.load(target_dir / "features.pkl")
+        model = joblib.load(model_file)
+        features = joblib.load(features_file)
         return model, features
 
     def get_report(self, version: str = "latest") -> dict:
         target_dir = self.models_dir / version
-        if not (target_dir / "report.json").exists() and version == "latest":
-            target_dir = self.models_dir
-
         report_file = target_dir / "report.json"
         if not report_file.exists():
             raise FileNotFoundError(f"Report not found at: {report_file}")

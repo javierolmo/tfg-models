@@ -5,13 +5,13 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
 
 from tfg_models import __version__
 from tfg_models.api.schemas import HealthResponse, PredictRequest, PredictResponse
 from tfg_models.core.model_handler import ModelHandler, get_model_handler
+from tfg_models.data.preprocessing import prepare_inference_features
 from tfg_models.models import MODEL_REGISTRY, get_model_trainer
 
 logger = logging.getLogger(__name__)
@@ -111,36 +111,18 @@ def predict(request: PredictRequest) -> PredictResponse:
     """Performs real-time property valuation."""
     model, features, encoding = load_and_cache_model(request.model, request.version)
 
-    # Standardize postal code to 5-digit string (e.g. '8001' or '08001' -> '08001')
-    standardized_pc = str(request.postal_code).split(".")[0].strip().zfill(5)
-
     try:
-        input_data = pd.DataFrame(
-            [
-                {
-                    "surface": request.surface,
-                    "rooms": request.rooms,
-                    "bathrooms": request.bathrooms,
-                    "elevator": int(bool(request.elevator)),
-                    "terrace": int(bool(request.terrace)),
-                    "garage": int(bool(request.garage)),
-                    "postal_code": standardized_pc,
-                }
-            ]
+        X_input = prepare_inference_features(
+            surface=request.surface,
+            rooms=request.rooms,
+            bathrooms=request.bathrooms,
+            postal_code=request.postal_code,
+            elevator=request.elevator,
+            terrace=request.terrace,
+            garage=request.garage,
+            features=features,
+            encoding=encoding,
         )
-
-        if encoding == "onehot":
-            for col in features:
-                if col not in input_data.columns:
-                    input_data[col] = False
-            target_pc_col = f"postal_code_{standardized_pc}"
-            if target_pc_col in input_data.columns:
-                input_data[target_pc_col] = True
-            X_input = input_data[features]
-        else:
-            input_data["postal_code"] = input_data["postal_code"].astype("category")
-            X_input = input_data[features]
-
         raw_prediction = float(model.predict(X_input)[0])
     except Exception as e:
         logger.error("Prediction execution failed: %s", e)

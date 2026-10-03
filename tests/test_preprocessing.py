@@ -3,7 +3,11 @@
 import numpy as np
 import pandas as pd
 
-from tfg_models.data.preprocessing import clean_property_data, prepare_features_for_model
+from tfg_models.data.preprocessing import (
+    clean_property_data,
+    prepare_features_for_model,
+    prepare_inference_features,
+)
 
 
 def test_clean_property_data():
@@ -116,3 +120,43 @@ def test_prepare_features_for_model_categorical():
     assert X["postal_code"].dtype.name == "category"
     assert "postal_code" in X.columns
     assert "postal_code_36201" not in X.columns
+
+
+def test_prepare_inference_features_categorical():
+    features = ["surface", "rooms", "bathrooms", "elevator", "terrace", "garage", "postal_code"]
+    df = prepare_inference_features(
+        surface=85.0,
+        rooms=3,
+        bathrooms=2,
+        postal_code="8001",
+        elevator=True,
+        terrace=False,
+        garage=True,
+        features=features,
+        encoding="categorical",
+    )
+    assert len(df) == 1
+    assert df["surface"].iloc[0] == 85.0
+    assert df["postal_code"].iloc[0] == "08001"
+    assert df["postal_code"].dtype.name == "category"
+    assert df["elevator"].iloc[0] == 1
+    assert df["terrace"].iloc[0] == 0
+    assert df["garage"].iloc[0] == 1
+
+
+def test_prepare_inference_features_onehot():
+    features = ["surface", "rooms", "bathrooms", "elevator", "terrace", "garage", "postal_code_36211"]
+    df = prepare_inference_features(
+        surface=90.0,
+        rooms=3,
+        bathrooms=1,
+        postal_code=36211,
+        elevator=False,
+        terrace=True,
+        garage=False,
+        features=features,
+        encoding="onehot",
+    )
+    assert len(df) == 1
+    assert bool(df["postal_code_36211"].iloc[0]) is True
+    assert list(df.columns) == features

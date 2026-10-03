@@ -61,7 +61,7 @@ def test_cmd_predict(mock_get_trainer, capsys):
     assert "ESTIMATED PRICE: 285,000.50 €" in out
 
 
-@patch("tfg_models.cli._get_model_handler")
+@patch("tfg_models.cli.get_model_handler")
 def test_cmd_compare(mock_get_handler, capsys):
     mock_handler = MagicMock()
     mock_handler.get_report.return_value = {
@@ -80,7 +80,7 @@ def test_cmd_compare(mock_get_handler, capsys):
     assert "75,000.00" in out
 
 
-@patch("tfg_models.cli._get_model_handler")
+@patch("tfg_models.cli.get_model_handler")
 def test_cmd_versions(mock_get_handler, capsys):
     mock_handler = MagicMock()
     mock_handler.list_versions.return_value = ["20260930_120000", "20260929_100000"]

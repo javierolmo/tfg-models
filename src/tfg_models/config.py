@@ -57,19 +57,6 @@ class Settings:
     default_test_size: float = 0.2
     default_random_state: int = 42
 
-    @property
-    def azure_storage_connection_string(self) -> Optional[str]:
-        """Convenience property for connection string."""
-        return self.azure_connection_string
-
-    @property
-    def azure_properties_url(self) -> str:
-        """Fully qualified ABFSS URL for properties_full."""
-        return (
-            f"abfss://{self.azure_container}@{self.azure_storage_account}.dfs.core.windows.net/"
-            f"{self.properties_table_path}"
-        )
-
 
 # Global settings singleton instance
 settings = Settings()
