@@ -1,14 +1,22 @@
 """Models registry and factory for tfg-models."""
 
+# Import PyTorch neural network before LightGBM to ensure clean OpenMP initialization
+try:
+    import torch  # noqa: F401
+except ImportError:
+    pass
+
 from typing import Dict, Type
 
 from tfg_models.core.trainer import BaseModelTrainer
-from tfg_models.models.lightgbm_model import LightGBMTrainer
+from tfg_models.models.neural_network import NeuralNetworkTrainer
 from tfg_models.models.linear_regression import LinearRegressionTrainer
+from tfg_models.models.lightgbm_model import LightGBMTrainer
 
 MODEL_REGISTRY: Dict[str, Type[BaseModelTrainer]] = {
     "linear_regression": LinearRegressionTrainer,
     "lightgbm": LightGBMTrainer,
+    "neural_network": NeuralNetworkTrainer,
 }
 
 
@@ -26,4 +34,5 @@ __all__ = [
     "get_model_trainer",
     "LinearRegressionTrainer",
     "LightGBMTrainer",
+    "NeuralNetworkTrainer",
 ]

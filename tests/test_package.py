@@ -10,3 +10,4 @@ def test_version():
 def test_registry():
     assert "linear_regression" in tfg_models.models.MODEL_REGISTRY
     assert "lightgbm" in tfg_models.models.MODEL_REGISTRY
+    assert "neural_network" in tfg_models.models.MODEL_REGISTRY

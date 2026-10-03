@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 authors = [
     { name = "Javier Olmo", email = "olmo.injerto.javier@gmail.com" }
 ]
-keywords = ["machine-learning", "real-estate", "lightgbm", "azure-datalake"]
+keywords = ["machine-learning", "real-estate", "lightgbm", "pytorch", "azure-datalake"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -23,6 +23,7 @@ dependencies = [
     "numpy>=2.0.0",
     "scikit-learn>=1.6.0",
     "lightgbm>=4.7.0",
+    "torch>=2.2.0",
     "joblib>=1.4.0",
     "azure-storage-blob>=12.24.0",
     "azure-core>=1.32.0",

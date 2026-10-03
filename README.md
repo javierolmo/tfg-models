@@ -21,6 +21,18 @@ The repository is split into two specialized runtime environments to optimize de
 
 ---
 
+## Supported Model Architectures
+
+1. **LightGBM Regressor (`lightgbm`)**: Fast gradient-boosted decision trees with native categorical splitting on postal codes and feature importance reporting.
+2. **PyTorch Tabular Neural Network (`neural_network`)**: Deep Tabular Multi-Layer Perceptron (MLP) featuring:
+   - **Entity Embeddings** for high-cardinality categorical postal codes (with unseen token handling `<unk>`).
+   - `StandardScaler` continuous feature normalization and target scaling for stable gradient descent.
+   - Robust `HuberLoss` (Smooth L1) to mitigate luxury outlier price volatility.
+   - `LayerNorm`, `GELU` activations, `Dropout`, and `AdamW` optimizer with learning rate scheduler.
+3. **Linear Regression (`linear_regression`)**: Baseline interpretable regression with one-hot encoded geographic dummy variables.
+
+---
+
 ## Security & Authentication: Secretless Managed Identity
 
 This repository supports **Secretless Authentication** using Azure Entra ID and `DefaultAzureCredential`:
@@ -68,8 +80,8 @@ tfg-models/
 │       ├── config.py           # Configuration and environment bindings
 │       ├── core/               # Base trainer, AzureModelHandler, LocalModelHandler
 │       ├── data/               # Cleaning and Data Lake providers (PyArrow)
-│       └── models/             # Regressors (Linear Regression, LightGBM)
-└── tests/                      # Automated unit and API test suites (48 tests, 90% coverage)
+│       └── models/             # Regressors (LightGBM, PyTorch Neural Network, Linear Regression)
+└── tests/                      # Automated unit and API test suites (53 tests, 89% coverage)
 ```
 
 ---
@@ -87,7 +99,7 @@ Optimized for low-latency scoring and health checks in Azure Container Apps.
 **Example Request (`POST /predict`):**
 ```json
 {
-  "model": "lightgbm",
+  "model": "neural_network",
   "version": "latest",
   "surface": 95.0,
   "rooms": 3,
@@ -102,9 +114,9 @@ Optimized for low-latency scoring and health checks in Azure Container Apps.
 **Example Response:**
 ```json
 {
-  "model": "lightgbm",
+  "model": "neural_network",
   "version": "latest",
-  "estimated_price": 245000.0,
+  "estimated_price": 248500.0,
   "currency": "EUR",
   "inputs": { ... }
 }
@@ -157,11 +169,11 @@ docker compose up inference-api
 # Launch Training HTTP API (port 8001)
 docker compose up training-api
 
-# Run CLI batch training
-docker compose run --rm train
+# Run CLI batch training (e.g. neural network)
+docker compose run --rm train --model neural_network
 
 # Run CLI prediction
-docker compose run --rm predict
+docker compose run --rm predict --model neural_network
 ```
 
 ### 4. Building Docker Images

@@ -21,7 +21,7 @@ class PredictRequest(PropertyPayload):
 
     model: str = Field(
         default="lightgbm",
-        description="Target model architecture to use for estimation ('lightgbm' or 'linear_regression')",
+        description="Target model architecture to use for estimation ('lightgbm', 'linear_regression', or 'neural_network')",
     )
     version: str = Field(
         default="latest",
@@ -52,7 +52,7 @@ class TrainRequest(BaseModel):
 
     model: str = Field(
         default="all",
-        description="Model to train ('all', 'lightgbm', 'linear_regression')",
+        description="Model to train ('all', 'lightgbm', 'linear_regression', 'neural_network')",
     )
     version: Optional[str] = Field(
         default=None,

@@ -1,7 +1,8 @@
 """LightGBM Regressor model trainer implementation."""
 
 import logging
-from typing import Any, Dict
+import platform
+from typing import Any, Dict, Optional
 
 import lightgbm as lgb
 import pandas as pd
@@ -19,6 +20,7 @@ class LightGBMTrainer(BaseModelTrainer):
         n_estimators: int = 300,
         learning_rate: float = 0.05,
         num_leaves: int = 31,
+        n_jobs: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
@@ -29,21 +31,29 @@ class LightGBMTrainer(BaseModelTrainer):
         self.n_estimators = n_estimators
         self.learning_rate = learning_rate
         self.num_leaves = num_leaves
+        if n_jobs is not None:
+            self.n_jobs = n_jobs
+        elif platform.system() == "Darwin":
+            # On macOS, multiple OpenMP runtimes conflict if multi-threaded; default to 1 on Darwin
+            self.n_jobs = 1
+        else:
+            self.n_jobs = -1
 
     def fit_model(self, X_train: pd.DataFrame, y_train: pd.Series) -> Any:
         """Trains a LightGBM Regressor with native categorical features."""
         logger.info(
-            "Fitting LightGBM Regressor (n_estimators=%d, lr=%.3f, num_leaves=%d)...",
+            "Fitting LightGBM Regressor (n_estimators=%d, lr=%.3f, num_leaves=%d, n_jobs=%d)...",
             self.n_estimators,
             self.learning_rate,
             self.num_leaves,
+            self.n_jobs,
         )
         model = lgb.LGBMRegressor(
             n_estimators=self.n_estimators,
             learning_rate=self.learning_rate,
             num_leaves=self.num_leaves,
             random_state=self.random_state,
-            n_jobs=-1,
+            n_jobs=self.n_jobs,
             verbosity=-1,
         )
         model.fit(
