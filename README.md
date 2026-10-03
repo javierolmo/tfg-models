@@ -21,6 +21,24 @@ The repository is split into two specialized runtime environments to optimize de
 
 ---
 
+## Security & Authentication: Secretless Managed Identity
+
+This repository supports **Secretless Authentication** using Azure Entra ID and `DefaultAzureCredential`:
+- **Production (Azure Container Apps)**: No connection strings or storage account keys needed. Authenticates automatically via User-Assigned or System-Assigned Managed Identity.
+- **Local Development**: Authenticates automatically using your Azure CLI session (`az login`), service principal, or local `.env` fallback.
+
+### Environment Variables
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `AZURE_STORAGE_ACCOUNT` | Storage account name hosting Data Lake & models | `tfgdatalake` |
+| `AZURE_MODELS_CONTAINER`| Container name where models are stored | `datalake` |
+| `AZURE_CONTAINER` | Container name for gold data | `gold` |
+| `AZURE_CLIENT_ID` | *(Optional)* Client ID of User-Assigned Managed Identity | `None` |
+| `AZURE_STORAGE_ACCOUNT_KEY` | *(Optional / Local)* Explicit storage key fallback | `None` |
+| `AZURE_STORAGE_CONNECTION_STRING` | *(Optional / Local)* Connection string fallback | `None` |
+
+---
+
 ## Project Structure
 
 This project adheres to the standard Python `src/` layout:
@@ -51,7 +69,7 @@ tfg-models/
 │       ├── core/               # Base trainer, AzureModelHandler, LocalModelHandler
 │       ├── data/               # Cleaning and Data Lake providers (PyArrow)
 │       └── models/             # Regressors (Linear Regression, LightGBM)
-└── tests/                      # Automated unit and API test suites (43 tests, 88% coverage)
+└── tests/                      # Automated unit and API test suites (48 tests, 90% coverage)
 ```
 
 ---
@@ -166,7 +184,67 @@ docker build --target train -t tfg-models-train:latest .
 ### 5. Running Tests
 
 ```bash
-pytest tests/ --cov=tfg_models --cov-report=term-missing
+pytest tests/ --cov=src --cov-report=term-missing
+```
+
+---
+
+## Terraform Deployment Example (Secretless)
+
+Example definition for deploying the inference service with a User-Assigned Managed Identity:
+
+```hcl
+# Managed Identity
+resource "azurerm_user_assigned_identity" "inference" {
+  name                = "uami-tfg-models-inference"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+# Role Assignment (Read-only access to storage blobs)
+resource "azurerm_role_assignment" "storage_reader" {
+  scope                = azurerm_storage_account.datalake.id
+  role_definition_name = "Storage Blob Data Reader"
+  principal_id         = azurerm_user_assigned_identity.inference.principal_id
+}
+
+# Container App
+resource "azurerm_container_app" "inference" {
+  name                         = "ca-tfg-inference"
+  container_app_environment_id = azurerm_container_app_environment.main.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.inference.id]
+  }
+
+  template {
+    min_replicas = 0
+    max_replicas = 3
+
+    container {
+      name   = "inference-api"
+      image  = "your-registry.azurecr.io/tfg-models-inference:latest"
+      cpu    = 0.5
+      memory = "1Gi"
+
+      env {
+        name  = "AZURE_STORAGE_ACCOUNT"
+        value = azurerm_storage_account.datalake.name
+      }
+      env {
+        name  = "AZURE_MODELS_CONTAINER"
+        value = "datalake"
+      }
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.inference.client_id
+      }
+    }
+  }
+}
 ```
 
 ---
